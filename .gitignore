@@ -1,0 +1,12 @@
+/target/
+/artifacts/
+*.dll
+*.pdb
+*.so
+*.dylib
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/obj/
+.vs/
+

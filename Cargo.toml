@@ -1,0 +1,20 @@
+[package]
+name = "mol_engine_core"
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+description = "TerraMol: a Rust-owned molecular simulation core with a versioned C ABI"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+lammps = ["dep:libloading"]
+
+[dependencies]
+libloading = { version = "0.8", optional = true }
+
+[profile.release]
+panic = "unwind"
+
