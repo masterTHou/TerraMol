@@ -55,9 +55,13 @@ impl LammpsBackend {
         if w.molecules()
             .iter()
             .any(|m| m.definition.atoms.len() != 1 || !m.definition.bonds.is_empty())
-            || w.atoms().iter().any(|a| a.number != w.atoms()[0].number)
+            || w.atoms().first().is_some_and(|first| {
+                w.atoms()
+                    .iter()
+                    .any(|a| a.number != first.number || a.mass != first.mass)
+            })
         {
-            return Err(Error::new(Code::Unsupported,"LJ backend accepts only a single species of monatomic particles; water/methane/benzene need a bonded force field"));
+            return Err(Error::new(Code::Unsupported,"LJ backend accepts only a single species of monatomic particles with identical masses; water/methane/benzene need a bonded force field"));
         }
         if w.atoms().len() > i32::MAX as usize {
             return Err(Error::new(Code::Capacity, "LAMMPS ID range exceeded"));

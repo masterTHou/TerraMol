@@ -151,3 +151,30 @@ fn analytic_lj_force_observables_and_timestep_convergence() {
     assert!(coarse < 1e-5, "{coarse}");
     assert!(fine < coarse * 0.4, "{coarse} {fine}");
 }
+
+#[test]
+fn rejects_inconsistent_single_species_masses_before_loading() {
+    let d = Arc::new(parse_xyz("1\nLJ\nC 0 0 0").unwrap());
+    let mut atom = d.atoms()[0].clone();
+    atom.element.mass = 13.;
+    let other = Arc::new(
+        mol_engine_core::molecule::MoleculeDefinition::new("different mass", vec![atom], vec![])
+            .unwrap(),
+    );
+    let mut w = World::new(40.).unwrap();
+    w.spawn_molecule(d, [10.; 3], [0., 0., 0., 1.]).unwrap();
+    w.spawn_molecule(other, [30.; 3], [0., 0., 0., 1.]).unwrap();
+    let mut l = LammpsBackend::new(
+        "missing",
+        LennardJones {
+            epsilon_kcal_mol: 0.1,
+            sigma_angstrom: 3.4,
+            cutoff_angstrom: 8.5,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        l.initialize(&w, 0.1).unwrap_err().code,
+        mol_engine_core::error::Code::Unsupported
+    );
+}

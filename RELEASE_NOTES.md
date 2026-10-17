@@ -30,7 +30,7 @@ LJ particles with explicit parameters. A smaller ZIP omits the optional runtime.
 ## Verification
 
 Executed locally on Windows: `cargo fmt --check`, strict all-feature Clippy,
-21 default Rust tests, 25 all-feature tests (4 opt-in tests ignored by default).
+21 default Rust tests, 26 all-feature tests (4 opt-in tests ignored by default).
 All 4 opt-in LAMMPS tests separately pass against the bundled runtime, including
 analytic two-particle force/potential and NVE timestep convergence. Actual DLL
 Python/C# and C/Rust/C# layouts pass. Real executable HTTP lifecycle/actions,

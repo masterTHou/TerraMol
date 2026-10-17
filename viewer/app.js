@@ -9,6 +9,7 @@ function toast(message,error=false){clearTimeout(toastTimer);const box=$('toast'
 function moleculeName(m){return m.name.startsWith('Generic LJ')?'通用 LJ 粒子':m.name.startsWith('Water')?'水分子':m.name.startsWith('Methane')?'甲烷分子':m.name.startsWith('Benzene')?'苯分子':m.name;}
 function updateSelection(editFields=false){const molecule=state?.molecules.find(m=>m.id===selected);$('selection-empty').hidden=!!molecule;$('selection-info').hidden=!molecule;if(!molecule)return;$('selected-name').textContent=moleculeName(molecule);$('selected-id').textContent='#'+molecule.id;$('selected-mass').textContent=molecule.mass_amu.toFixed(3)+' amu';$('selected-angular').textContent=Math.hypot(...(molecule.angular_velocity||[0,0,0])).toFixed(5)+' rad/fs';$('selected-speed').textContent=Math.hypot(...molecule.velocity).toFixed(5)+' Å/fs';if(editFields)for(const [i,id]of ['wx','wy','wz'].entries())$(id).value=(molecule.angular_velocity||[0,0,0])[i].toFixed(5);if(editFields)for(const [i,id]of ['vx','vy','vz'].entries())$(id).value=molecule.velocity[i].toFixed(5);}
 function accept(next){if(closed||replaying)return;const version=BigInt(next.revision);if(version<revision)return;revision=version;state=next;view.setState(next);selected=view.selected;$('molecule-count').textContent=next.molecules.length;$('atom-count').textContent=next.atoms.length;$('time').textContent=(next.time_fs/1000).toFixed(3)+' ps';$('step-count').textContent=Number(next.steps).toLocaleString()+' 个固定物理步';$('play-label').textContent=next.running?'暂停模拟':'继续运行';$('play-icon').textContent=next.running?'Ⅱ':'▶';$('live-badge').textContent=next.running?'LIVE SIMULATION':'SIMULATION PAUSED';$('live-badge').classList.toggle('paused',!next.running);$('empty-scene').hidden=next.atoms.length!==0;$('loading').hidden=true;$('connection').textContent='Rust 核心已连接';$('status-dot').classList.add('online');$('fps').textContent=view.fps+' FPS';updateSelection();if(next.error&&next.error!==lastPhysicsError)toast(next.error,true);lastPhysicsError=next.error;
+  if(document.activeElement!==$('speed')){$('speed').value=next.speed;$('speed-value').textContent=next.speed.toFixed(1)+'×';}
   $('model').value=next.model;$('backend-label').textContent=next.model==='lj'?'LAMMPS · LJ 势':'NATIVE · 平动与转动';
   const ljOption=$('model').querySelector('[value="lj"]');ljOption.disabled=!next.lammps_available;ljOption.textContent=next.lammps_available?'LAMMPS · 通用 LJ 粒子':'LAMMPS · 需完整便携包';
   $('simulation-parameters').textContent=`${next.box_size} Å 模拟盒 · 固定步长 ${next.timestep_fs} fs`;
@@ -53,6 +54,7 @@ $('record').addEventListener('click',guard(async()=>{
   recording=!recording;$('record').textContent=recording?'■ 停止记录':'● 开始记录轨迹';
 }));
 $('export').addEventListener('click',guard(async()=>{
+  if(!state)throw new Error('请等待场景加载完成');
   const metadata=await api('api/experiment');
   if(recording){recording=false;$('record').textContent='● 开始记录轨迹';}
   const data={...metadata,recording_start:experiment,trajectory_schema:'terramol-render-trajectory-1',frames:recorder.frames.length?recorder.frames:[state]};
