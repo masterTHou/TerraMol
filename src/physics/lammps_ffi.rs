@@ -168,11 +168,15 @@ impl Lammps {
     }
     // Gather/scatter buffers are caller-owned Rust allocations, not C allocations.
     // No allocating extract APIs are used; lammps_free is therefore not needed.
-    pub(crate) fn energy(&mut self) -> Result<f64> {
+    pub(crate) fn thermo_value(&mut self, name: &str) -> Result<f64> {
         let _guard = C_API_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-        let e = unsafe { (self.thermo)(self.handle, c"etotal".as_ptr()) };
+        let name = CString::new(name).map_err(|_| failure("invalid thermo key"))?;
+        let e = unsafe { (self.thermo)(self.handle, name.as_ptr()) };
         self.check()?;
         Ok(e)
+    }
+    pub(crate) fn energy(&mut self) -> Result<f64> {
+        self.thermo_value("etotal")
     }
 }
 impl Drop for Lammps {

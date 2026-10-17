@@ -57,3 +57,14 @@ No experimental zero-copy API is exposed in v1. A future zero-copy interface
 needs an explicit borrow/release token and independently owned immutable storage.
 ABI evolution must preserve v1 symbols/semantics or introduce a versioned ABI;
 changing record strides silently is forbidden.
+
+## v1.2 additive API (ABI remains 1)
+
+`me_set_angular_velocity` sets world omega in rad/fs. `me_observables` returns
+a 40-byte repr(C) record: four f64 values (KE, PE, total, temperature), u32 DOF
+at offset 32 and u32 potential-availability flag at 36. Energies kcal/mol,
+temperature K. When flag=0, PE/total numeric zeros are unused and must display
+unavailable. Rust/C/C# layouts and actual DLL clients test the record.
+Snapshot layout is unchanged; atom velocity now includes omega cross r, while
+`me_molecule_info` still returns COM velocity. Thermal assigns translation and
+rotation, so clients must not confuse a single atom velocity with COM velocity.

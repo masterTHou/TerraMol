@@ -5,9 +5,16 @@ use crate::{
     world::World,
 };
 use std::collections::BTreeMap;
-/// Rigid translations + elastic bounding-sphere impulses. No atomistic forces/torques.
+/// Torque-free rigid rotation + elastic smooth bounding-sphere impulses. No atomistic forces.
 pub struct NativeBackend;
 impl PhysicsBackend for NativeBackend {
+    fn kind(&self) -> super::BackendKind {
+        super::BackendKind::Rigid
+    }
+    fn observables(&mut self, w: &World) -> Result<super::observables::Observables> {
+        Ok(super::observables::Observables::rigid(w))
+    }
+
     fn initialize(&mut self, _: &World, _: f64) -> Result<()> {
         Ok(())
     }
@@ -37,10 +44,30 @@ impl PhysicsBackend for NativeBackend {
             if subdivisions > 10000. {
                 return Err(Error::invalid("native collision substep budget exceeded"));
             }
-            let n = subdivisions as u32;
+            let angular = w
+                .molecules
+                .iter()
+                .map(|m| {
+                    let min = m
+                        .definition
+                        .inertia
+                        .moments
+                        .iter()
+                        .copied()
+                        .filter(|v| *v > 0.)
+                        .fold(f64::INFINITY, f64::min);
+                    norm(m.angular_momentum) / min * dt / 0.01
+                })
+                .fold(1., f64::max)
+                .ceil();
+            if angular > 10000. {
+                return Err(Error::invalid("native angular substep budget exceeded"));
+            }
+            let n = subdivisions.max(angular) as u32;
             for _ in 0..n {
                 for m in &mut w.molecules {
                     m.center = add(m.center, scale(m.velocity, dt / n as f64));
+                    crate::physics::rigid::advance(m, dt / n as f64);
                     reflect(m, w.sim_box.size);
                 }
                 let cell = w

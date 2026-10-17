@@ -105,3 +105,49 @@ fn ffi_lj_lifecycle() {
         assert_eq!(me_destroy(h), 0);
     }
 }
+#[test]
+#[ignore = "requires serial LAMMPS_LIBRARY"]
+fn analytic_lj_force_observables_and_timestep_convergence() {
+    use mol_engine_core::physics::observables::VELOCITY_ENERGY;
+    fn simulation(dt: f64, r: f64) -> Simulation {
+        let d = Arc::new(parse_xyz("1\nLJ test\nC 0 0 0").unwrap());
+        let mut w = World::new(100.).unwrap();
+        w.spawn_molecule(d.clone(), [50. - r / 2., 50., 50.], [0., 0., 0., 1.])
+            .unwrap();
+        w.spawn_molecule(d, [50. + r / 2., 50., 50.], [0., 0., 0., 1.])
+            .unwrap();
+        Simulation::new(w, dt, Box::new(backend())).unwrap()
+    }
+    let r: f64 = 4.5;
+    let sigma: f64 = 3.4;
+    let epsilon = 0.1;
+    let cutoff: f64 = 8.5;
+    let mut s = simulation(0.001, r);
+    let o = s.observables().unwrap();
+    let pair = |r: f64| 4. * epsilon * ((sigma / r).powi(12) - (sigma / r).powi(6));
+    assert!((o.potential_kcal_mol.unwrap() - (pair(r) - pair(cutoff))).abs() < 1e-12);
+    s.step(1).unwrap();
+    let force = 24. * epsilon / r * ((sigma / r).powi(6) - 2. * (sigma / r).powi(12));
+    let predicted = force / 12.011 / VELOCITY_ENERGY * 0.001;
+    assert!((s.world.atoms()[0].velocity[0] / predicted - 1.).abs() < 1e-8);
+    let o = s.observables().unwrap();
+    assert_eq!(o.degrees_of_freedom, 6);
+    assert!(
+        (o.total_kcal_mol.unwrap() - (o.kinetic_kcal_mol + o.potential_kcal_mol.unwrap())).abs()
+            < 1e-14
+    );
+    fn drift(dt: f64) -> f64 {
+        let mut s = simulation(dt, 4.5);
+        let e = s.observables().unwrap().total_kcal_mol.unwrap();
+        let mut max: f64 = 0.;
+        for _ in 0..20 {
+            s.step((50. / dt) as u32).unwrap();
+            max = max.max((s.observables().unwrap().total_kcal_mol.unwrap() - e).abs());
+        }
+        max
+    }
+    let coarse = drift(1.);
+    let fine = drift(0.5);
+    assert!(coarse < 1e-5, "{coarse}");
+    assert!(fine < coarse * 0.4, "{coarse} {fine}");
+}

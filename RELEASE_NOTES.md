@@ -1,39 +1,49 @@
-# TerraMol v1.1.0 — One-click Molecular Viewer
+# TerraMol v1.2.0 — Molecules can rotate
 
-**下载 `TerraMol-Viewer-v1.1.0-windows-x64.zip`，全部解压，双击
-`启动TerraMol.cmd` 或 `TerraMol.exe`，即可看到运动中的分子。**
+Native 分子现在同时平动和自由转动。版本新增完整惯性张量、角动量／姿态积分、
+质量与惯性加权热采样、角速度设置，以及可直接切换的 LAMMPS LJ 实验模式。
 
-无需安装 Unity、Rust、Python、Node.js 或 VC++ 运行库。程序是包含静态 CRT 的
-Windows x64 独立 EXE，自动打开默认浏览器；全部网页资源已内置，无 CDN 或联网依赖。
+## For beginners
 
-本次新增：
+Download **TerraMol-Viewer-v1.2.0-windows-x64-LAMMPS.zip**, extract **all** files,
+and double-click **启动TerraMol.cmd** or **TerraMol.exe**. No Unity, Rust, Python,
+Node.js, VC++ redistributable or separate LAMMPS installation is needed. The default
+browser displays rotating water molecules. Switch “物理模型” to LAMMPS for generic
+LJ particles with explicit parameters. A smaller ZIP omits the optional runtime.
 
-- 离线 WebGL 球棍渲染、模拟盒、鼠标旋转/缩放与全景适配。
-- 图形硬件不可用时的 Canvas 兼容投影。
-- 默认自动运行 50 个水分子，支持水/甲烷/苯模板切换、混合添加、重置与清空。
-- 整分子选择、高亮、Rust 质心质量/速度信息、速度箭头、删除和速度控制。
-- Kelvin 热速度采样、暂停/继续、播放速度控制；新分子采样不会改变已有分子的速度。
-- 本机 HTTP 传输、固定 1 fs Rust 积分、一致快照和过期响应过滤。
-- 正常退出及无页面访问 3 分钟后自动释放资源；不安装后台服务。
-- 中文新手指南、真实运行截图、便携包和 SHA-256 校验文件。
+## Changes
 
-已执行本地验证：默认 Rust 测试 15 项通过；包含 viewer 的全部 features 测试
-与严格 Clippy 通过。真实 EXE HTTP 测试覆盖增删、索引、暂停、并发、访问边界、
-退出和闲置清理。实际浏览器确认 WebGL、Canvas 兼容、整分子点选、速度设置/箭头、
-删除与退出；双击入口自动打开默认 Chrome。静态依赖检查只列出 Windows 系统 DLL。
+- Torque-free point-mass rigid rotation, normalized quaternion midpoint integration,
+  deterministic Maxwell translation and principal-axis angular-momentum sampling.
+- Exact preservation of surviving per-atom coordinates and velocities on topology changes.
+- Explicit backend capability/observable contracts and transactional viewer mode changes.
+- KE, PE, total, measured temperature, DOF, absolute energy change; unavailable Native
+  PE/total clearly marked. LJ values come from LAMMPS, with 3N temperature convention.
+- f64 initial state, configuration, seed and step-tagged action export; up to 1000
+  sampled trajectory frames, JSON download/import and scrubbing without reintegration.
+- Additive ABI 1 angular and observables functions; Python and C# bindings updated,
+  unchanged render snapshot layout. Atom velocity includes rotation, COM is separate.
+- Full portable runtime with license notices and matching source archive (including
+  Rust dependency sources). TerraMol source remains MIT; bundled LAMMPS is GPL v2,
+  and the combined distribution follows GPL v2 terms.
 
-这是 Native 刚体近似可视化，**不是完整原子级 MD**。水、甲烷、苯的真实动力学
-仍需适当的力场参数化；本次没有伪造构象搜索、能量优化或 RL 训练功能。
-原有 Rust API、C ABI v1、Unity 源码、Python 和可选 LAMMPS 后端继续保留。
+## Verification
 
-详细说明：[新手开始](https://github.com/masterTHou/TerraMol/blob/main/新手开始.md)、
-[Viewer 架构与验证](https://github.com/masterTHou/TerraMol/blob/main/docs/viewer.md)。
-最终 [CI 运行 39032916141](https://github.com/masterTHou/TerraMol/actions/runs/39032916141)
-已全部通过：Windows/Linux/macOS 核心与 Viewer 真实进程测试、Windows 便携包
-构建/打包与 C# 桥接、Ubuntu LAMMPS 联调。
+Executed locally on Windows: `cargo fmt --check`, strict all-feature Clippy,
+21 default Rust tests, 25 all-feature tests (4 opt-in tests ignored by default).
+All 4 opt-in LAMMPS tests separately pass against the bundled runtime, including
+analytic two-particle force/potential and NVE timestep convergence. Actual DLL
+Python/C# and C/Rust/C# layouts pass. Real executable HTTP lifecycle/actions,
+LJ switching/rejection, no-runtime failure, export metadata and idle exit tested.
+Browser verified WebGL, download/import of 89 frames and scrubbing to the final frame.
 
-## v1.0 核心基础
+## Scientific limits
 
-首个核心原型、五阶段提交与原始 DLL 发行包继续保留在
-[v1.0.0](https://github.com/masterTHou/TerraMol/releases/tag/v1.0.0)。
-完整 Rust/Unity/测试源码由各标签的 Source code 提供。LAMMPS 二进制没有捆绑。
+Native collisions remain frictionless smooth bounding spheres, producing no torque
+or translation/rotation energy exchange. No atomistic molecular force field is
+implemented for water, methane or benzene. LJ is a generic monatomic sandbox:
+ε=0.1 kcal/mol, σ=3.4 Å, cutoff=8.5 Å, shifted potential, mass=12.011 amu,
+dt=0.1 fs, reflected walls. It is not a validated carbon potential. Measured
+T includes overall flow; initial temperature sampling is not a thermostat.
+Exported trajectories are observations, not restart checkpoints. Unity Editor,
+IL2CPP and macOS LAMMPS remain unverified. Full definitions: [v1.2 documentation](https://github.com/masterTHou/TerraMol/blob/v1.2.0/docs/v1.2.md).

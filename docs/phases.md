@@ -174,3 +174,13 @@ process/HTTP/lifecycle, Windows static-CRT packaging and C# bridge, and Ubuntu
 LAMMPS all pass. The extracted local Windows package also passes from a Unicode /
 spaced folder and unrelated working directory. Final precise input fields use
 `step=any` so sampled velocities and fractional Kelvin values remain editable.
+
+## v1.2 — Rotation and scientific experiment loop
+
+Added point-mass rigid rotation, principal-axis thermal samples, explicit backend
+kind/observable contracts, topology-state preservation, viewer LJ mode, measured
+science, action/initial-state export and render trajectory replay. See
+[v1.2 specification and acceptance](v1.2.md) for files, commands, numerical
+approximations, tests and known limits. Portable LAMMPS runtime is compiled from
+pinned unchanged source with static CRT; binary/source/third-party notices are
+packaged together in the release.

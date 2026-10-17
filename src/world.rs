@@ -121,6 +121,7 @@ impl World {
             center,
             velocity: [0.; 3],
             rotation,
+            angular_momentum: [0.; 3],
             atom_start: 0,
         });
         Ok(id)
@@ -191,18 +192,26 @@ impl World {
         self.rebuild();
     }
     pub(crate) fn rebuild(&mut self) {
-        self.atoms.clear();
+        // Preserve surviving atom states exactly, including atomistic deformation.
+        let mut old = std::collections::BTreeMap::<u64, Vec<AtomState>>::new();
+        for a in self.atoms.drain(..) {
+            old.entry(a.molecule_id).or_default().push(a);
+        }
         self.bonds.clear();
         for m in &mut self.molecules {
             m.atom_start = self.atoms.len();
-            for a in &m.definition.atoms {
-                self.atoms.push(AtomState {
-                    position: add(m.center, rotate(m.rotation, a.local)),
-                    velocity: m.velocity,
-                    number: a.element.number,
-                    molecule_id: m.id,
-                    mass: a.element.mass,
-                });
+            if let Some(atoms) = old.remove(&m.id) {
+                self.atoms.extend(atoms);
+            } else {
+                for a in &m.definition.atoms {
+                    self.atoms.push(AtomState {
+                        position: add(m.center, rotate(m.rotation, a.local)),
+                        velocity: m.velocity,
+                        number: a.element.number,
+                        molecule_id: m.id,
+                        mass: a.element.mass,
+                    });
+                }
             }
             self.bonds.extend(m.definition.bonds.iter().map(|b| Bond {
                 a: b.a + m.atom_start,
@@ -218,7 +227,10 @@ impl World {
             for (i, a) in m.definition.atoms.iter().enumerate() {
                 let s = &mut self.atoms[m.atom_start + i];
                 s.position = add(m.center, rotate(m.rotation, a.local));
-                s.velocity = m.velocity;
+                s.velocity = add(
+                    m.velocity,
+                    cross(m.angular_velocity(), rotate(m.rotation, a.local)),
+                );
             }
         }
         self.state_version += 1;
@@ -241,5 +253,27 @@ impl World {
             );
         }
         self.state_version += 1;
+    }
+}
+#[cfg(test)]
+mod topology_tests {
+    use super::*;
+    #[test]
+    fn preserves_deformation_and_per_atom_velocities() {
+        let mut w = World::new(100.).unwrap();
+        let d = Arc::new(crate::chemistry::template(0).unwrap());
+        let id = w
+            .spawn_molecule(d.clone(), [20.; 3], [0., 0., 0., 1.])
+            .unwrap();
+        w.atoms[1].position[0] += 0.15;
+        w.atoms[2].velocity = [0.3, -0.2, 0.1];
+        let before = w.atoms.clone();
+        let other = w.spawn_molecule(d, [80.; 3], [0., 0., 0., 1.]).unwrap();
+        w.remove_molecule(other).unwrap();
+        assert_eq!(w.molecules[0].id, id);
+        for (a, b) in before.iter().zip(&w.atoms) {
+            assert_eq!(a.position, b.position);
+            assert_eq!(a.velocity, b.velocity);
+        }
     }
 }

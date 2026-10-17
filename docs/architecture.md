@@ -4,7 +4,8 @@
 
 Definitions encode chemical identity and geometry. Instances reference definitions
 through Arc and own stable, monotonically increasing molecule IDs. The world's
-contiguous atom array is rebuilt on topology changes; snapshot bond indices are
+contiguous atom array is rebuilt on topology changes while preserving surviving
+atom coordinates/velocities. Snapshot bond indices are
 valid only for that snapshot's topology version. An ID is never an array offset.
 Atom identity across topology changes is not yet a public stable-ID contract.
 
@@ -13,7 +14,9 @@ Atom identity across topology changes is not yet a public stable-ID contract.
 Simulation owns one PhysicsBackend and fixed dt. Changes in topology trigger
 `sync_topology`; actions trigger `sync_state`; `step(N)` advances fixed steps.
 Native owns no separate copy of world data. LAMMPS owns an internal engine mirror
-and copies back after run. Switching backends mid-episode is not implemented.
+and copies back after run. The viewer switches modes by constructing a fresh validated
+simulation, retiring IDs and incrementing topology versions; it does not reinterpret
+a bonded molecular scene as LJ particles.
 Backend step failures may leave that backend advanced internally; a scientific
 experiment should discard/reset the failed episode rather than assume rollback.
 
@@ -51,3 +54,12 @@ validated graph cuts; rings require a dedicated algorithm. Observation/action
 types support headless experimentation without implying a reward function or
 learning algorithm. Reset keeps deterministic geometry/velocity seeds while
 retiring prior molecule IDs so stale selections cannot target a new molecule.
+
+## 006 — Rigid rotation and measured science
+
+Native conserves world angular momentum and integrates orientation using the
+point-mass inertia pseudoinverse. Thermal sampling includes principal-axis
+rotation. Smooth bounding-sphere impulses carry no torque. Per-atom snapshot
+velocities include rotation; COM velocity is a separate molecule observation.
+Backend observables declare their DOF and potential availability; Native does not
+fabricate a PE. See [v1.2 scientific definitions](v1.2.md).

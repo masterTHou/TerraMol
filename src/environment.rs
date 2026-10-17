@@ -27,6 +27,9 @@ pub struct MoleculeObservation {
     pub center: Vec3,
     pub velocity: Vec3,
     pub mass_amu: f64,
+    pub angular_velocity: Vec3,
+    pub angular_momentum: Vec3,
+    pub rotation: [f64; 4],
 }
 pub struct Observation {
     pub schema_version: u32,
@@ -75,6 +78,9 @@ impl Simulation {
                     center: m.center,
                     velocity: m.velocity,
                     mass_amu: m.definition.mass,
+                    angular_velocity: m.angular_velocity(),
+                    angular_momentum: m.angular_momentum,
+                    rotation: m.rotation,
                 })
                 .collect(),
         })
@@ -97,6 +103,9 @@ impl Simulation {
             Action::Velocity { id, value } => self.world.set_molecule_velocity(id, value)?,
             Action::Thermal { kelvin, seed } => {
                 self.world.apply_thermal_velocities(kelvin, seed)?
+            }
+            Action::AngularVelocity { id, value } => {
+                self.world.set_molecule_angular_velocity(id, value)?
             }
             Action::Flow(v) => self.world.apply_directed_flow(v)?,
             Action::Step(n) => self.step(n)?,

@@ -404,3 +404,39 @@ mod tests {
         assert!(message.contains("panic contained"));
     }
 }
+/// Additive ABI v1 function; omega uses world-frame radians/fs.
+#[no_mangle]
+pub unsafe extern "C" fn me_set_angular_velocity(h: u64, id: u64, x: f64, y: f64, z: f64) -> i32 {
+    boundary(|| with_world(h, |s| s.world.set_molecule_angular_velocity(id, [x, y, z])))
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct MeObservables {
+    pub kinetic: f64,
+    pub potential: f64,
+    pub total: f64,
+    pub temperature: f64,
+    pub degrees_of_freedom: u32,
+    /// 1 means potential and total are meaningful; 0 means unavailable.
+    pub has_potential: u32,
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_observables(h: u64, out: *mut MeObservables) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        with_world(h, |s| {
+            let o = s.observables()?;
+            unsafe {
+                out.write(MeObservables {
+                    kinetic: o.kinetic_kcal_mol,
+                    potential: o.potential_kcal_mol.unwrap_or(0.),
+                    total: o.total_kcal_mol.unwrap_or(0.),
+                    temperature: o.temperature_kelvin,
+                    degrees_of_freedom: o.degrees_of_freedom,
+                    has_potential: u32::from(o.potential_kcal_mol.is_some()),
+                });
+            }
+            Ok(())
+        })
+    })
+}

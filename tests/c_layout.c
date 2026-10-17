@@ -7,3 +7,6 @@ _Static_assert(sizeof(me_element_info)==32,"element layout");
 _Static_assert(sizeof(me_molecule_data)==56,"molecule layout");
 _Static_assert(offsetof(me_render_atom,molecule_id)==32,"ID offset");
 _Static_assert(offsetof(me_snapshot_header,state_version)==16,"state offset");
+
+_Static_assert(sizeof(me_observables_data)==40,"observables layout");
+_Static_assert(offsetof(me_observables_data,has_potential)==36,"potential flag offset");

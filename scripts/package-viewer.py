@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 import re
 import struct
+import sys
 import zipfile
 
 root=Path(__file__).resolve().parents[1]
@@ -14,8 +15,12 @@ if data[:2]!=b'MZ' or data[offset:offset+4]!=b'PE\0\0' or struct.unpack_from('<H
 version=re.search(r'^version\s*=\s*"([^"]+)"',(root/'Cargo.toml').read_text(),re.M)[1]
 out=root/'artifacts/release'
 out.mkdir(parents=True,exist_ok=True)
-archive=out/f'TerraMol-Viewer-v{version}-windows-x64.zip'
+with_lammps='--with-lammps' in sys.argv
+archive=out/(f'TerraMol-Viewer-v{version}-windows-x64'+('-LAMMPS.zip' if with_lammps else '.zip'))
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
+    if with_lammps:
+        for source in ['liblammps.dll','third_party/LAMMPS-LICENSE.txt','third_party/README.md']:
+            z.write(root/source,source)
     for source in ['TerraMol.exe','启动TerraMol.cmd','新手开始.md','LICENSE']:
         z.write(root/source,source)
     z.writestr('README.txt','TerraMol portable molecular viewer\n\n'
@@ -23,11 +28,12 @@ with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
         '3. Your default browser opens with 50 moving water molecules.\n'
         'No Unity, Rust, Python, Node.js or Internet connection is needed.\n'
         'Use the top-right Exit button to stop. An unused session exits after 3 minutes.\n\n'
-        'Native rigid translation + approximate bounding-sphere collisions. Not atomistic MD.\n'
+        'Native rigid translation/rotation + approximate smooth-sphere collisions. Not atomistic MD.\n' +
+        ('Optional bundled LAMMPS: see third_party/README.md and GPL v2 license.\n' if with_lammps else 'LAMMPS is not bundled; LJ mode requires a compatible external runtime.\n') +
         'Source and scientific limitations: https://github.com/masterTHou/TerraMol\n')
 with zipfile.ZipFile(archive) as z:
     assert z.testzip() is None
 digest=hashlib.sha256(archive.read_bytes()).hexdigest()
-(out/'VIEWER-SHA256SUMS.txt').write_text(f'{digest}  {archive.name}\n',encoding='ascii')
+(out/('VIEWER-LAMMPS-SHA256SUMS.txt' if with_lammps else 'VIEWER-SHA256SUMS.txt')).write_text(f'{digest}  {archive.name}\n',encoding='ascii')
 print(archive)
 print('SHA256:',digest)

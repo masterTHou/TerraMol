@@ -9,12 +9,13 @@
 <body>
 <header class="topbar">
   <a class="brand" href="./" aria-label="TerraMol 首页"><span class="brand-mark">T<span>●</span></span><span>TerraMol<small>分子探索空间</small></span></a>
-  <div class="top-label"><span class="status-dot" id="status-dot"></span><span id="connection">正在连接本机模拟…</span><span class="divider"></span><span class="backend-label">NATIVE · 刚体模型</span></div>
+  <div class="top-label"><span class="status-dot" id="status-dot"></span><span id="connection">正在连接本机模拟…</span><span class="divider"></span><span class="backend-label" id="backend-label">NATIVE · 平动与转动</span></div>
   <button id="exit" class="quiet-button">退出程序 ↗</button>
 </header>
 <main class="workspace">
 <aside class="sidebar">
   <div class="eyebrow">YOUR MOLECULAR SANDBOX</div><h1>从一个分子开始<span>观察它们如何运动。</span></h1>
+  <label class="field-label" for="model">物理模型</label><select id="model"><option value="native">刚体分子 · 平动与转动</option><option value="lj">LAMMPS · 通用 LJ 粒子</option></select>
   <section class="control-group">
     <div class="section-title"><span>01</span><h2>选择分子</h2></div>
     <div class="molecule-options" role="group" aria-label="分子种类">
@@ -22,6 +23,7 @@
       <button class="molecule-choice" data-kind="1" aria-pressed="false"><span class="molecule-icon methane">✣</span><strong>甲烷</strong><small>CH₄</small></button>
       <button class="molecule-choice" data-kind="2" aria-pressed="false"><span class="molecule-icon benzene">⬡</span><strong>苯</strong><small>C₆H₆</small></button>
     </div>
+    <button id="lj-choice" class="secondary full-width" hidden>通用 LJ 粒子 · 单原子</button>
     <div class="button-row"><button id="spawn-one" class="secondary">＋ 添加 1 个</button><button id="spawn-batch" class="secondary">＋ 添加 50 个</button></div>
     <button id="reset" class="text-button">↻ 以当前分子重新开始 <span>固定种子 42</span></button>
   </section>
@@ -29,19 +31,19 @@
     <div class="section-title"><span>02</span><h2>让分子动起来</h2></div>
     <label class="field-label" for="temperature">热速度温度 <span>K</span></label>
     <div class="input-action"><input id="temperature" type="number" min="0" max="5000" step="any" value="300" aria-label="热速度温度，开尔文"><button id="thermal" class="secondary">施加热运动</button></div>
-    <p class="field-help">温度越高，初始运动通常越快。按分子质量采样质心速度，不是恒温器。</p>
+    <p class="field-help">温度越高，初始运动通常越快。按质量及惯性张量采样平动／转动速度，不是恒温器。</p>
     <button id="play" class="primary"><span id="play-icon">Ⅱ</span><span id="play-label">暂停模拟</span><kbd>SPACE</kbd></button>
     <label class="field-label speed-label" for="speed">播放速度 <output id="speed-value">1.0×</output></label>
     <input id="speed" type="range" min="0.1" max="5" step="0.1" value="1">
     <div class="range-labels"><span>慢一点</span><span>快一点</span></div>
   </section>
-  <section class="model-note"><span class="note-icon">i</span><div><strong>现在看到的是什么？</strong><p>分子保持自身形状，在盒子中平移、反弹并进行简化碰撞。这是交互式近似演示，尚未计算原子级力场。</p></div></section>
+  <section class="model-note"><span class="note-icon">i</span><div><strong>现在看到的是什么？</strong><p id="model-note">刚体保持形状并自由转动。光滑包围球碰撞不产生转动力矩；这不是原子级 MD。</p></div></section>
   <button id="clear" class="text-button danger">清空全部分子</button>
   <div class="sidebar-footer">RUST CORE <span>·</span> 本机运行 <span>·</span> 无需 Unity</div>
 </aside>
 <section class="viewport" aria-label="三维分子场景">
   <canvas id="scene" aria-label="拖动旋转场景，滚轮缩放，点击原子选择整个分子"></canvas>
-  <div class="viewport-top"><div><span class="live-badge" id="live-badge">LIVE SIMULATION</span><h2 id="scene-title">水分子的运动</h2><p>40 Å 模拟盒 · 固定步长 1 fs</p></div><button id="fit" class="glass-button" title="回到全景">⊡ 全景</button></div>
+  <div class="viewport-top"><div><span class="live-badge" id="live-badge">LIVE SIMULATION</span><h2 id="scene-title">水分子的运动</h2><p id="simulation-parameters">40 Å 模拟盒 · 固定步长 1 fs</p></div><button id="fit" class="glass-button" title="回到全景">⊡ 全景</button></div>
   <div class="empty-scene" id="empty-scene" hidden><span>◌</span><h3>场景已清空</h3><p>在左侧添加分子，或点击“重新开始”。</p></div>
   <div class="viewport-bottom"><div id="legend" class="legend"></div><div class="gesture-help"><span>↔ 拖动旋转</span><span>⊕ 滚轮缩放</span><span>● 点击选择</span></div></div>
   <div class="loading-cover" id="loading"><div class="loader"></div><h3>正在准备分子世界</h3><p>连接本机 Rust 模拟核心…</p></div>
@@ -50,17 +52,20 @@
   <div class="eyebrow">SCENE OVERVIEW</div><h2>场景概览</h2>
   <div class="metrics"><div><strong id="molecule-count">—</strong><span>分子</span></div><div><strong id="atom-count">—</strong><span>原子</span></div></div>
   <div class="time-card"><span>已推进的物理时间</span><strong id="time">0.000 <small>ps</small></strong><p id="step-count">0 个固定物理步</p></div>
+  <dl class="details science"><div><dt>实测温度</dt><dd id="measured-temperature">— K</dd></div><div><dt>动能 KE</dt><dd id="kinetic">—</dd></div><div><dt>势能 PE</dt><dd id="potential">—</dd></div><div><dt>总能量</dt><dd id="total-energy">—</dd></div><div><dt>ΔE / ΔKE</dt><dd id="energy-change">—</dd></div><div><dt>自由度</dt><dd id="dof">—</dd></div></dl><p class="field-help">能量单位 kcal/mol。Δ 从最近一次操作后的首次观测计算；刚体无势能时显示 ΔKE。</p>
   <div class="inspector-divider"></div>
   <div class="section-title inspector-title"><span>⌖</span><h2>选中分子</h2></div>
   <div id="selection-empty" class="selection-empty"><div class="selection-symbol">⌖</div><h3>试着点击一个原子</h3><p>整个分子会被选中，并显示质心速度箭头。</p></div>
   <div id="selection-info" hidden>
     <div class="selected-title"><strong id="selected-name">水</strong><span id="selected-id">#1</span></div>
-    <dl class="details"><div><dt>总质量</dt><dd id="selected-mass">—</dd></div><div><dt>质心速度</dt><dd id="selected-speed">—</dd></div></dl>
+    <dl class="details"><div><dt>总质量</dt><dd id="selected-mass">—</dd></div><div><dt>质心速度</dt><dd id="selected-speed">—</dd></div><div><dt>角速度大小</dt><dd id="selected-angular">—</dd></div></dl>
     <label class="field-label">设置整体速度 <span>Å/fs</span></label>
     <div class="velocity-fields"><label>X<input id="vx" type="number" step="any" value="0.01"></label><label>Y<input id="vy" type="number" step="any" value="0"></label><label>Z<input id="vz" type="number" step="any" value="0"></label></div>
     <button id="velocity" class="secondary full-width">应用速度</button><p class="field-help">箭头放大显示速度方向，不改变模拟数值。</p>
+    <label class="field-label">设置角速度 <span>rad/fs</span></label><div class="velocity-fields"><label>X<input id="wx" type="number" step="any" value="0"></label><label>Y<input id="wy" type="number" step="any" value="0.02"></label><label>Z<input id="wz" type="number" step="any" value="0"></label></div><button id="angular-velocity" class="secondary full-width">应用角速度</button>
     <button id="remove" class="text-button danger">删除选中的分子 <kbd>DEL</kbd></button>
   </div>
+  <div class="inspector-divider"></div><button id="record" class="secondary full-width">● 开始记录轨迹</button><button id="export" class="text-button">下载实验与轨迹 JSON</button><label class="field-label">载入轨迹回放<input id="replay-file" type="file" accept=".json,application/json"></label><input id="replay-frame" type="range" min="0" max="0" value="0" hidden><button id="return-live" class="text-button" hidden>返回实时模拟</button><p id="record-status" class="field-help">最多 1000 帧，观测采样回放，不重新积分。</p>
   <div class="renderer-status"><span id="renderer-name">正在初始化画面</span><span id="fps">— FPS</span></div>
 </aside>
 </main>

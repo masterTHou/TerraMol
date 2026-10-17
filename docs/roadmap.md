@@ -4,6 +4,7 @@
 |---|---|---|
 | v1.0 core prototype | Rust native rigid scene, C ABI, Unity source, optional monatomic LJ, extension contracts | See phase verification log |
 | v1.1 portable viewer | Self-contained EXE, offline browser rendering, beginner launcher and controls | Executed HTTP, lifecycle and browser acceptance tests; see viewer docs |
+| v1.2 rotation + LJ experiments | Torque-free rigid rotation, scientific observables, LJ viewer, experiment export/replay, bundled runtime | Executed rotation/inertia/equipartition, analytic LJ force and dt convergence, FFI and browser acceptance; see v1.2 docs |
 | Next: parameterization | Explicit atom typing, charges, bonds/angles/dihedrals, force-field provenance | Compare reference energies/forces with an independent system |
 | Planned: atomistic workflows | Constraint policies, thermostat/barostat, trajectory and checkpoint formats | Validate ensembles, convergence and restart reproducibility |
 | Planned: conformer workflows | Rotatable bond discovery, proposal generators, energy evaluation and minimizers | Geometry validity and benchmark datasets |

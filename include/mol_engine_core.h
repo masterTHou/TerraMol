@@ -35,6 +35,11 @@ int32_t ME_CALL me_batch_spawn(me_handle h,uint32_t kind,uint32_t count,uint64_t
 int32_t ME_CALL me_remove(me_handle h,uint64_t id);
 int32_t ME_CALL me_clear(me_handle h);
 int32_t ME_CALL me_set_velocity(me_handle h,uint64_t id,double x,double y,double z);
+typedef struct {double kinetic,potential,total,temperature;uint32_t degrees_of_freedom,has_potential;} me_observables_data;
+/* Energies kcal/mol, temperature K. has_potential=0: potential/total unavailable. */
+int32_t ME_CALL me_observables(me_handle h,me_observables_data *out);
+/* World angular velocity radians/fs; null-inertia axes are projected out. */
+int32_t ME_CALL me_set_angular_velocity(me_handle h,uint64_t id,double x,double y,double z);
 int32_t ME_CALL me_thermal(me_handle h,double kelvin,uint64_t seed);
 int32_t ME_CALL me_flow(me_handle h,double x,double y,double z);
 int32_t ME_CALL me_snapshot_size(me_handle h,uint64_t *bytes);

@@ -15,27 +15,27 @@
 
 **不用安装 Unity，不用安装 Rust、Python 或 Node.js。**
 
-1. 下载 [Windows x64 便携可视化程序](https://github.com/masterTHou/TerraMol/releases/tag/v1.1.0)，选择 **TerraMol-Viewer** ZIP。
+1. 下载 [Windows x64 便携可视化程序](https://github.com/masterTHou/TerraMol/releases/tag/v1.2.0)，新手建议选择文件名带 **LAMMPS.zip** 的完整便携包。
 2. **全部解压缩**，双击 **启动TerraMol.cmd** 或 **TerraMol.exe**。
 3. 浏览器自动打开，立即看到 50 个运动中的水分子。拖动旋转、滚轮缩放，点击原子选中整分子。
 
-支持水/甲烷/苯、混合添加、热运动、速度设置、整分子高亮、速度箭头、暂停、重新开始、
-清空和正常退出。程序内置全部网页资源，**不依赖 CDN 或互联网连接**。
+支持水/甲烷/苯的 **平动与自由转动**、热运动、角速度设置、整分子高亮、速度箭头、
+暂停和重置；v1.2 新增 **LAMMPS LJ 模式、能量／温度监测、实验导出与轨迹回放**。程序内置全部网页资源，**不依赖 CDN 或互联网连接**。
 首次打开使用 WebGL；图形硬件不可用时自动切换到 Canvas 兼容投影。
 
-![便携程序实际运行画面](assets/viewer-preview.png)
+![v1.2 便携程序实际运行画面](assets/viewer-v1.2.png)
 
 完整操作说明：[新手开始](新手开始.md)。当前画面使用 Native 刚体近似，
 **不是带有完整力场的原子级 MD**；模型说明在页面中始终可见。
 
-[v1.1 跨平台 CI 全部通过](https://github.com/masterTHou/TerraMol/actions/runs/39032916141)，
-包含 Viewer 实际进程测试与 Windows 便携包构建。
+v1.2 的物理定义、验收命令、实现边界与限制见 [版本说明](docs/v1.2.md)。
+轻量包只含刚体模式所需文件；完整包附 LAMMPS 运行库及许可证，解压后即可切换 LJ。
 
 TerraMol 是一个长期演进的分子模拟与构象探索项目。`mol_engine_core`
 拥有唯一的分子定义、实例、拓扑和模拟状态；Unity 与浏览器只负责显示、输入和 UI。
 同一套 Rust API 与版本化 C ABI 为 CLI、Unity 和未来 Python 强化学习入口服务。
 
-**v1.0 是核心原型。** Native 是刚体平动与简化包围球碰撞，不是真实原子级 MD。
+**v1.2 仍是科学计算原型。** Native 是刚体平动／转动与简化包围球碰撞，不是真实原子级 MD。
 可选 LAMMPS 后端执行显式参数的单组分 Lennard–Jones 系统；水、甲烷、苯的
 真实动力学尚需力场参数化，后端会明确拒绝这些多原子模板。
 
@@ -51,7 +51,7 @@ flowchart TD
     ABI --> Core[Simulation Core · authoritative f64 state]
     Core --> World[World / Chemistry / Actions / Observations]
     Core --> Backend{PhysicsBackend}
-    Backend --> Native[Native · rigid translations / elastic spheres]
+    Backend --> Native[Native · rigid translation + rotation / smooth spheres]
     Backend --> LAMMPS[LAMMPS feature · explicit LJ parameters]
     Core -. extension .-> Conformer[ConformerGenerator / dihedrals / energy metadata]
 ```
@@ -181,3 +181,9 @@ Python 环境和批量科研实验。[路线图](docs/roadmap.md) 记录阶段�
 欢迎通过 Issue 提出可复现的科学问题、性能瓶颈和设计建议。贡献前阅读
 [CONTRIBUTING](CONTRIBUTING.md) 与 [架构约束](docs/architecture.md)。TerraMol 源码采用
 MIT；LAMMPS 是独立的 GPL 项目，使用和再分发须遵守其许可。
+
+## Runtime distribution
+
+TerraMol source retains its MIT license. The optional bundled LAMMPS runtime is GPL v2;
+the combined portable distribution follows GPL v2 terms with corresponding sources
+provided in the same release. See [runtime notices](third_party/README.md).

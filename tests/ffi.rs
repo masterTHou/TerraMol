@@ -54,3 +54,25 @@ fn parallel_handles() {
     ids.dedup();
     assert_eq!(ids.len(), 8);
 }
+#[test]
+fn angular_and_observables_abi() {
+    use mol_engine_core::ffi::*;
+    unsafe {
+        assert_eq!(std::mem::size_of::<MeObservables>(), 40);
+        assert_eq!(std::mem::offset_of!(MeObservables, has_potential), 36);
+        let mut h = 0;
+        assert_eq!(me_create(100., 0.1, &mut h), 0);
+        let mut id = 0;
+        assert_eq!(me_spawn(h, 0, 50., 50., 50., &mut id), 0);
+        assert_eq!(me_set_angular_velocity(h, id, 0., 0.02, 0.), 0);
+        assert_ne!(me_set_angular_velocity(h, id, f64::NAN, 0., 0.), 0);
+        assert_ne!(me_observables(h, std::ptr::null_mut()), 0);
+        let mut o = MeObservables::default();
+        assert_eq!(me_observables(h, &mut o), 0);
+        assert_eq!(o.degrees_of_freedom, 6);
+        assert_eq!(o.has_potential, 0);
+        assert!(o.kinetic > 0.);
+        assert_eq!(me_destroy(h), 0);
+        assert_ne!(me_observables(h, &mut o), 0);
+    }
+}

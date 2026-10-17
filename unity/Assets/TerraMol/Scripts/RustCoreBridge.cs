@@ -22,6 +22,8 @@ namespace TerraMol {
     public struct ElementInfo { public uint Number; public float R, G, B; public double Vdw, Mass; }
     [StructLayout(LayoutKind.Sequential, Pack = 8)]
     public struct MoleculeInfo { public double X, Y, Z, Vx, Vy, Vz, Mass; }
+    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    public struct ScientificObservables { public double Kinetic, Potential, Total, Temperature; public uint DegreesOfFreedom, HasPotential; }
     public sealed class RenderSnapshot {
         public SnapshotHeader Header;
         public RenderAtom[] Atoms = new RenderAtom[0];
@@ -53,13 +55,17 @@ namespace TerraMol {
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_element(uint number, out ElementInfo info);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_molecule_info(ulong h, ulong id, out MoleculeInfo info);
 
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_set_angular_velocity(ulong h, ulong id, double x, double y, double z);
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_observables(ulong h, out ScientificObservables info);
+        public void SetAngularVelocity(ulong id, double x, double y, double z) { lock(gate) { Alive(); Check(me_set_angular_velocity(handle,id,x,y,z)); } }
+        public ScientificObservables Observables() { lock(gate) { Alive(); ScientificObservables info; Check(me_observables(handle,out info)); return info; } }
         public static void ValidateLayout() {
             if (!BitConverter.IsLittleEndian || Marshal.SizeOf(typeof(SnapshotHeader)) != 40 ||
                 Marshal.SizeOf(typeof(RenderAtom)) != 40 || Marshal.SizeOf(typeof(RenderBond)) != 16 ||
                 Marshal.OffsetOf(typeof(RenderAtom), "MoleculeId").ToInt32() != 32 ||
                 Marshal.OffsetOf(typeof(RenderAtom), "Element").ToInt32() != 24 ||
                 Marshal.OffsetOf(typeof(SnapshotHeader), "StateVersion").ToInt32() != 16 ||
-                Marshal.SizeOf(typeof(ElementInfo)) != 32 || Marshal.SizeOf(typeof(MoleculeInfo)) != 56)
+                Marshal.SizeOf(typeof(ElementInfo)) != 32 || Marshal.SizeOf(typeof(MoleculeInfo)) != 56 || Marshal.SizeOf(typeof(ScientificObservables)) != 40 || Marshal.OffsetOf(typeof(ScientificObservables), "HasPotential").ToInt32() != 36)
                 throw new PlatformNotSupportedException("TerraMol ABI v1 layout mismatch");
         }
         public RustCoreBridge(double size = 100, double dtFs = 1) {

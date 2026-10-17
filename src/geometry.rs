@@ -79,3 +79,40 @@ impl Rng {
         ]
     }
 }
+
+/// Right-handed cross product.
+pub fn cross(a: Vec3, b: Vec3) -> Vec3 {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+pub fn conjugate(q: [f64; 4]) -> [f64; 4] {
+    [-q[0], -q[1], -q[2], q[3]]
+}
+pub fn quaternion_product(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
+    let v = add(
+        add(
+            scale([a[0], a[1], a[2]], b[3]),
+            scale([b[0], b[1], b[2]], a[3]),
+        ),
+        cross([a[0], a[1], a[2]], [b[0], b[1], b[2]]),
+    );
+    [
+        v[0],
+        v[1],
+        v[2],
+        a[3] * b[3] - dot([a[0], a[1], a[2]], [b[0], b[1], b[2]]),
+    ]
+}
+pub fn advance_rotation(q: [f64; 4], omega: Vec3, dt: f64) -> [f64; 4] {
+    let angle = norm(omega) * dt;
+    if angle.abs() < 1e-16 {
+        return q;
+    }
+    let v = scale(omega, (angle * 0.5).sin() / norm(omega));
+    let r = quaternion_product([v[0], v[1], v[2], (angle * 0.5).cos()], q);
+    let n = r.iter().map(|x| x * x).sum::<f64>().sqrt();
+    r.map(|x| x / n)
+}

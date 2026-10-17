@@ -24,6 +24,10 @@ pub enum Action {
         kelvin: f64,
         seed: u64,
     },
+    AngularVelocity {
+        id: MoleculeId,
+        value: Vec3,
+    },
     Flow(Vec3),
     Step(u32),
     Reset(crate::environment::ResetSpec),
@@ -42,6 +46,39 @@ impl World {
         m.velocity = velocity;
         for a in &mut self.atoms[m.atom_start..m.atom_start + m.definition.atoms.len()] {
             a.velocity = add(a.velocity, delta);
+        }
+        self.state_version += 1;
+        Ok(())
+    }
+    /// Sets world angular velocity; singular (linear/point) rotation axes are projected out.
+    pub fn set_molecule_angular_velocity(&mut self, id: MoleculeId, omega: Vec3) -> Result<()> {
+        if !finite(omega) {
+            return Err(Error::invalid("invalid angular velocity"));
+        }
+        let m = self
+            .molecules
+            .iter_mut()
+            .find(|m| m.id == id)
+            .ok_or_else(|| Error::new(Code::NotFound, "molecule not found"))?;
+        let body = rotate(conjugate(m.rotation), omega);
+        let inertia = &m.definition.inertia;
+        let l = (0..3).fold([0.; 3], |v, i| {
+            add(
+                v,
+                scale(
+                    inertia.axes[i],
+                    inertia.moments[i] * dot(body, inertia.axes[i]),
+                ),
+            )
+        });
+        let l = rotate(m.rotation, l);
+        if !finite(l) {
+            return Err(Error::invalid("angular momentum overflow"));
+        }
+        m.angular_momentum = l;
+        let omega = m.angular_velocity();
+        for a in &mut self.atoms[m.atom_start..m.atom_start + m.definition.atoms.len()] {
+            a.velocity = add(m.velocity, cross(omega, sub(a.position, m.center)));
         }
         self.state_version += 1;
         Ok(())
@@ -85,8 +122,20 @@ impl World {
         if values.iter().any(|(_, v)| !finite(*v)) {
             return Err(Error::invalid("thermal velocity overflow"));
         }
+        let mut angular_rng = Rng::new(seed ^ 0xa3c59ac3d49b8621);
         for (id, v) in values {
             self.set_molecule_velocity(id, v)?;
+            let m = self.molecules.iter_mut().find(|m| m.id == id).unwrap();
+            m.angular_momentum = rotate(
+                m.rotation,
+                m.definition
+                    .inertia
+                    .sample_momentum(&mut angular_rng, KB_VELOCITY * temperature),
+            );
+            let omega = m.angular_velocity();
+            for a in &mut self.atoms[m.atom_start..m.atom_start + m.definition.atoms.len()] {
+                a.velocity = add(m.velocity, cross(omega, sub(a.position, m.center)));
+            }
         }
         Ok(())
     }

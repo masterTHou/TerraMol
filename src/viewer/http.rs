@@ -162,6 +162,10 @@ pub fn handle(mut stream: TcpStream, c: &Arc<Context>) {
                     "text/javascript; charset=utf-8",
                     include_bytes!("../../viewer/app.js").as_slice(),
                 )),
+                "trajectory.js" => Some((
+                    "text/javascript; charset=utf-8",
+                    include_bytes!("../../viewer/trajectory.js").as_slice(),
+                )),
                 "renderer.js" => Some((
                     "text/javascript; charset=utf-8",
                     include_bytes!("../../viewer/renderer.js").as_slice(),
@@ -179,8 +183,12 @@ pub fn handle(mut stream: TcpStream, c: &Arc<Context>) {
             if let Some((kind, body)) = asset {
                 return respond(&mut stream, 200, kind, body);
             }
-            if path == "api/state" {
+            if path == "api/experiment" {
                 let app = c.app.lock().map_err(|_| io::Error::other("app lock"))?;
+                return json_response(&mut stream, 200, &app.experiment());
+            }
+            if path == "api/state" {
+                let mut app = c.app.lock().map_err(|_| io::Error::other("app lock"))?;
                 return match app.state() {
                     Ok(s) => json_response(&mut stream, 200, &s),
                     Err(e) => json_response(&mut stream, 500, &json!({"error":e.message})),
@@ -197,11 +205,13 @@ pub fn handle(mut stream: TcpStream, c: &Arc<Context>) {
             let mut app = c.app.lock().map_err(|_| io::Error::other("app lock"))?;
             match app.apply(action) {
                 Ok(shutdown) => {
+                    if shutdown {
+                        let result = json_response(&mut stream, 200, &json!({"shutdown":true}));
+                        c.stop.store(true, Ordering::Relaxed);
+                        return result;
+                    }
                     let state = app.state().map_err(io::Error::other)?;
                     let result = json_response(&mut stream, 200, &state);
-                    if shutdown {
-                        c.stop.store(true, Ordering::Relaxed);
-                    }
                     return result;
                 }
                 Err(e) => {

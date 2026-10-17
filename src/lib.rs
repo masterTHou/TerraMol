@@ -72,6 +72,13 @@ impl Simulation {
         self.elapsed_steps = next_step;
         Ok(())
     }
+    pub fn backend_kind(&self) -> physics::BackendKind {
+        self.backend.kind()
+    }
+    pub fn observables(&mut self) -> Result<physics::observables::Observables> {
+        self.step(0)?;
+        self.backend.observables(&self.world)
+    }
     pub fn dt_fs(&self) -> f64 {
         self.dt_fs
     }

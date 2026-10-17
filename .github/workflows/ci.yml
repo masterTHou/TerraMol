@@ -18,6 +18,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/trajectory.mjs
+      - run: node --check viewer/app.js
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo test --all-features
@@ -62,20 +67,56 @@ jobs:
             artifacts/release/TerraMol-Viewer-*.zip
             artifacts/release/VIEWER-SHA256SUMS.txt
   lammps:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Build pinned serial LAMMPS
         run: |
-          git clone --depth 1 --branch stable_29Aug2024_update3 https://github.com/lammps/lammps.git /tmp/lammps
-          cmake -S /tmp/lammps/cmake -B /tmp/lammps-build -D BUILD_SHARED_LIBS=ON -D BUILD_MPI=OFF -D BUILD_OMP=OFF -D CMAKE_BUILD_TYPE=Release
-          cmake --build /tmp/lammps-build --target lammps --parallel 2
-          c++ -std=c++17 -Wall -Wextra -Werror -I /tmp/lammps/src -c tests/lammps_header_check.cpp -o /tmp/header-check.o
+          git clone --depth 1 --branch stable_29Aug2024_update3 https://github.com/lammps/lammps.git artifacts/lammps-source
+          cmake -S artifacts/lammps-source/cmake -B artifacts/lammps-ci -D BUILD_SHARED_LIBS=ON -D BUILD_MPI=OFF -D BUILD_OMP=OFF -D CMAKE_BUILD_TYPE=Release -D CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build artifacts/lammps-ci --config Release --target lammps --parallel 2
+      - name: Check installed header (Linux)
+        if: runner.os == 'Linux'
+        run: c++ -std=c++17 -Wall -Wextra -Werror -I artifacts/lammps-source/src -c tests/lammps_header_check.cpp -o artifacts/header-check.o
+      - name: Select runtime
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "LAMMPS_LIBRARY=$GITHUB_WORKSPACE/artifacts/lammps-ci/Release/liblammps.dll" >> "$GITHUB_ENV"
+          else
+            echo "LAMMPS_LIBRARY=$GITHUB_WORKSPACE/artifacts/lammps-ci/liblammps.so" >> "$GITHUB_ENV"
+          fi
       - name: Physical integration and error conversion
-        env:
-          LAMMPS_LIBRARY: /tmp/lammps-build/liblammps.so
         run: |
           cargo test --features lammps --test lammps -- --ignored --test-threads=1
           cargo test --features lammps --lib -- --ignored --test-threads=1
           cargo run --features lammps --example lammps_lj
+      - name: LJ viewer (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cargo build --release --features viewer,lammps --bin terramol_viewer
+          python tests/viewer_smoke.py target/release/terramol_viewer --lammps
+      - name: Full portable viewer and corresponding sources (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Copy-Item -LiteralPath $env:LAMMPS_LIBRARY -Destination liblammps.dll
+          powershell -ExecutionPolicy Bypass -File scripts/build-viewer.ps1
+          python tests/viewer_smoke.py TerraMol.exe --lammps
+          python scripts/package-viewer.py --with-lammps
+          python scripts/package-source.py artifacts/lammps-source
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: viewer-with-lammps-Windows
+          path: |
+            artifacts/release/TerraMol-Viewer-*-LAMMPS.zip
+            artifacts/release/VIEWER-LAMMPS-SHA256SUMS.txt
+            artifacts/release/TerraMol-*-corresponding-source.tar.gz

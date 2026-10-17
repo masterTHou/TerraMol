@@ -24,6 +24,7 @@ pub struct MoleculeDefinition {
     pub(crate) mass: f64,
     pub(crate) source_com: Vec3,
     pub(crate) radius: f64,
+    pub inertia: crate::physics::rigid::Inertia,
 }
 impl MoleculeDefinition {
     pub fn name(&self) -> &str {
@@ -80,7 +81,16 @@ impl MoleculeDefinition {
         if !radius.is_finite() || radius <= 0. || radius > 1e12 {
             return Err(Error::invalid("invalid molecular radius"));
         }
+        let inertia_trace = atoms
+            .iter()
+            .map(|a| a.element.mass * dot(a.local, a.local))
+            .sum::<f64>();
+        if !inertia_trace.is_finite() {
+            return Err(Error::invalid("inertia tensor overflow"));
+        }
+        let inertia = crate::physics::rigid::Inertia::from_atoms(&atoms);
         Ok(Self {
+            inertia,
             name: name.into(),
             atoms,
             bonds,
@@ -97,5 +107,21 @@ pub struct MoleculeInstance {
     pub center: Vec3,
     pub velocity: Vec3,
     pub rotation: [f64; 4],
+    /// World-frame angular momentum, amu Angstrom^2/fs.
+    pub angular_momentum: Vec3,
     pub atom_start: usize,
+}
+
+impl MoleculeInstance {
+    pub fn angular_velocity(&self) -> Vec3 {
+        rotate(
+            self.rotation,
+            self.definition
+                .inertia
+                .inverse(rotate(conjugate(self.rotation), self.angular_momentum)),
+        )
+    }
+    pub fn rotational_energy(&self) -> f64 {
+        0.5 * dot(self.angular_momentum, self.angular_velocity())
+    }
 }

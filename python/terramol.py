@@ -22,6 +22,20 @@ class Observation:
     bonds: tuple
 
 
+class _Observables(c.Structure):
+    _fields_ = [('kinetic', c.c_double), ('potential', c.c_double), ('total', c.c_double),
+                ('temperature', c.c_double), ('degrees_of_freedom', c.c_uint32), ('has_potential', c.c_uint32)]
+
+
+@dataclass(frozen=True)
+class ScientificObservables:
+    kinetic_kcal_mol: float
+    potential_kcal_mol: object
+    total_kcal_mol: object
+    temperature_kelvin: float
+    degrees_of_freedom: int
+
+
 class HeadlessSimulation:
     def __init__(self, library, box_size=100.0, dt_fs=1.0):
         self.lib = c.CDLL(str(Path(library).resolve()))
@@ -33,6 +47,8 @@ class HeadlessSimulation:
             'me_step': [c.c_uint64, c.c_uint32],
             'me_reset_template': [c.c_uint64, c.c_uint32, c.c_uint32, c.c_uint64, c.c_double],
             'me_set_velocity': [c.c_uint64, c.c_uint64, c.c_double, c.c_double, c.c_double],
+            'me_set_angular_velocity': [c.c_uint64, c.c_uint64, c.c_double, c.c_double, c.c_double],
+            'me_observables': [c.c_uint64, c.POINTER(_Observables)],
             'me_flow': [c.c_uint64, c.c_double, c.c_double, c.c_double],
             'me_snapshot_size': [c.c_uint64, c.POINTER(c.c_uint64)],
             'me_snapshot_copy': [c.c_uint64, c.c_void_p, c.c_uint64, c.POINTER(c.c_uint64)],
@@ -82,6 +98,20 @@ class HeadlessSimulation:
         if len(value) != 3:
             raise ValueError('Velocity requires three components')
         self._check(self.lib.me_set_velocity(self.handle, self._uint(molecule_id, 64), *value))
+
+    def angular_velocity(self, molecule_id, value):
+        """World-frame rad/fs; atom snapshot velocities include omega cross r."""
+        self._alive()
+        if len(value) != 3:
+            raise ValueError('Angular velocity requires three components')
+        self._check(self.lib.me_set_angular_velocity(self.handle, self._uint(molecule_id, 64), *value))
+
+    def observables(self):
+        self._alive()
+        value = _Observables()
+        self._check(self.lib.me_observables(self.handle, c.byref(value)))
+        return ScientificObservables(value.kinetic, value.potential if value.has_potential else None,
+            value.total if value.has_potential else None, value.temperature, value.degrees_of_freedom)
 
     def flow(self, value):
         self._alive()

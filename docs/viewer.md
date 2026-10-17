@@ -83,7 +83,7 @@ Unix viewer checks are headless HTTP/lifecycle checks, not GPU screenshot tests.
 
 ## Limits
 
-Native uses rigid translations and approximate bounding spheres, not atomistic
+Native uses rigid translations/torque-free rotations and approximate smooth bounding spheres, not atomistic
 MD. There is no client-side force field, complete conformer search or RL training.
 The viewer caps scenes at 1000 molecules, but dense placement can exhaust retries
 well before that cap. WebGL shares sphere/cylinder mesh buffers but does not yet
@@ -91,3 +91,10 @@ use GPU instancing; Canvas is a compatibility projection with approximate depth
 sorting. Throughput/FPS depend on hardware and viewport. Session persistence,
 trajectory export, scientific f64 HTTP observations and macOS/Linux prebuilt
 packages are future work. The portable file is not a Unity player build.
+
+## v1.2 additions
+
+See [v1.2](v1.2.md) for angular controls, explicit LJ mode (optional runtime),
+measured observables, export/replay, build and test contracts, numerical limits
+and corresponding-source packaging. The current full Windows release bundles
+the pinned runtime; lightweight builds fail explicitly when LJ is unavailable.

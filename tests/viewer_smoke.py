@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory(prefix='terramol-viewer-') as temp:
         assert '分子探索空间' in page.decode()
         assert '分子探索空间' in get('?renderer=canvas')[0].decode()
         assert "frame-ancestors 'none'" in headers['Content-Security-Policy']
-        for name in ['app.js','renderer.js','style.css','favicon.svg']:assert len(get(name)[0])>100
+        for name in ['app.js','renderer.js','trajectory.js','style.css','favicon.svg']:assert len(get(name)[0])>100
         paused=action('playback',running=False)
         assert len(paused['atoms'])==150 and len(paused['molecules'])==50
         assert isinstance(paused['atoms'][0]['molecule_id'],str)
@@ -62,6 +62,26 @@ with tempfile.TemporaryDirectory(prefix='terramol-viewer-') as temp:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             states=list(pool.map(lambda _:json.loads(get()[0]),range(12)))
         assert all(len(s['atoms'])==250 for s in states)
+        observables=json.loads(get()[0]);assert observables['degrees_of_freedom']==300 and observables['kinetic_kcal_mol']>0
+        selected=observables['molecules'][0]['id'];action('angular_velocity',id=selected,value=[0,.02,0])
+        exported=json.loads(get('api/experiment')[0]);assert exported['schema']=='terramol-experiment-1'
+        assert len(exported['initial_state']['atoms'])==250
+        if len(sys.argv)>2 and sys.argv[2]=='--lammps':
+            oldids={m['id'] for m in observables['molecules']}
+            b=action('mode',model='lj');assert b['model']=='lj' and len(b['atoms'])==50 and not b['bonds']
+            assert b['lj_parameters']==[.1,3.4,8.5] and b['timestep_fs']==.1
+            b=action('playback',running=False)
+            assert b['potential_kcal_mol'] is not None and b['degrees_of_freedom']==150
+            assert abs(b['total_kcal_mol']-b['kinetic_kcal_mol']-b['potential_kcal_mol'])<1e-10
+            assert not oldids.intersection(m['id'] for m in b['molecules'])
+            try:action('spawn',kind=0,count=1);raise AssertionError('Bonded molecule accepted by LJ')
+            except urllib.error.HTTPError as e:assert e.code==409
+            action('remove',id=b['molecules'][0]['id']);b=action('clear');assert b['total_kcal_mol']==0
+            action('spawn',kind=3,count=1)
+            b=action('mode',model='native');assert b['model']=='native' and len(b['atoms'])==150
+        else:
+            try:action('mode',model='lj');raise AssertionError('Missing LAMMPS silently accepted')
+            except urllib.error.HTTPError as e:assert e.code==409
         action('thermal',kelvin=400)
         b=action('clear');assert not b['atoms'] and not b['bonds']
         action('shutdown');assert process.wait(timeout=5)==0
