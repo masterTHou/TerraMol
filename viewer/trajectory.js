@@ -17,3 +17,13 @@ export function validateTrajectory(data) {
   }
   return data.frames;
 }
+/** Bounded render recording: exports stay below the 50 MB import limit. */
+export class TrajectoryRecorder {
+  constructor(maxFrames=1000,maxBytes=20*1024*1024){this.frames=[];this.bytes=0;this.maxFrames=maxFrames;this.maxBytes=maxBytes;}
+  append(frame){
+    if(this.frames.length>=this.maxFrames)return false;
+    const copy=structuredClone(frame),bytes=new TextEncoder().encode(JSON.stringify(copy)).length;
+    if(this.bytes+bytes>this.maxBytes)return false;
+    this.frames.push(copy);this.bytes+=bytes;return true;
+  }
+}

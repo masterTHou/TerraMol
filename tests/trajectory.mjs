@@ -1,4 +1,4 @@
-import {validateTrajectory} from '../viewer/trajectory.js';
+import {validateTrajectory,TrajectoryRecorder} from '../viewer/trajectory.js';
 import assert from 'node:assert/strict';
 const frame={model:'native',topology_version:'1',steps:'10',timestep_fs:1,time_fs:10,box_size:40,
   kinetic_kcal_mol:1,potential_kcal_mol:null,total_kcal_mol:null,measured_temperature:300,energy_change_kcal_mol:0,degrees_of_freedom:6,
@@ -20,3 +20,11 @@ for(const mutate of [
  d=>d.trajectory_schema='unknown'
 ]){const d=fixture();mutate(d);assert.throws(()=>validateTrajectory(d));}
 console.log('Trajectory file validation: valid observations accepted, malformed references/coordinates/limits rejected');
+
+const bounded=new TrajectoryRecorder(2,100000);assert(bounded.append(frame));
+frame.atoms[0].position[0]=30;assert.equal(bounded.frames[0].atoms[0].position[0],20);
+assert(bounded.append(frame));assert.equal(bounded.append(frame),false);assert.equal(bounded.frames.length,2);
+const budget=new TrajectoryRecorder(1000,10);assert.equal(budget.append(frame),false);assert.equal(budget.frames.length,0);
+const exact=new TrajectoryRecorder(1000,new TextEncoder().encode(JSON.stringify(frame)).length);
+assert(exact.append(frame));assert.equal(exact.append(frame),false);
+console.log('Trajectory recording: copy isolation, frame cap and byte budget enforced');

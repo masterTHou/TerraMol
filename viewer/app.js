@@ -1,9 +1,9 @@
-import { validateTrajectory } from './trajectory.js';
+import { validateTrajectory, TrajectoryRecorder } from './trajectory.js';
 import { MolecularView } from './renderer.js';
 const $=id=>document.getElementById(id), base=new URL('./',location.href);
 let state=null,revision=-1n,kind=0,selected=null,closed=false,toastTimer,lastPhysicsError=null,lastConnectionToast=-Infinity;
 const names=['水','甲烷','苯','LJ 粒子'];
-let recording=false,frames=[],experiment=null,replaying=false,replayFrames=[],lastRecorded=null;
+let recording=false,recorder=new TrajectoryRecorder(),experiment=null,replaying=false,replayFrames=[],lastRecorded=null;
 const view=new MolecularView($('scene'),id=>{selected=id;updateSelection(true);},name=>{$('renderer-name').textContent=name;});
 function toast(message,error=false){clearTimeout(toastTimer);const box=$('toast');box.textContent=message;box.classList.toggle('error',error);box.hidden=false;toastTimer=setTimeout(()=>{box.hidden=true;},error?6500:2600);}
 function moleculeName(m){return m.name.startsWith('Generic LJ')?'通用 LJ 粒子':m.name.startsWith('Water')?'水分子':m.name.startsWith('Methane')?'甲烷分子':m.name.startsWith('Benzene')?'苯分子':m.name;}
@@ -17,7 +17,10 @@ function accept(next){if(closed||replaying)return;const version=BigInt(next.revi
   $('measured-temperature').textContent=next.measured_temperature.toFixed(1)+' K';
   const energy=x=>x==null?'不适用':x.toFixed(5);
   $('kinetic').textContent=energy(next.kinetic_kcal_mol);$('potential').textContent=energy(next.potential_kcal_mol);$('total-energy').textContent=energy(next.total_kcal_mol);$('energy-change').textContent=energy(next.energy_change_kcal_mol);$('dof').textContent=next.degrees_of_freedom;
-  if(recording&&next.steps!==lastRecorded){frames.push(structuredClone(next));lastRecorded=next.steps;if(frames.length>=1000){recording=false;$('record').textContent='● 开始记录轨迹';}$('record-status').textContent=`已记录 ${frames.length} / 1000 帧；快照观测回放。`;}
+  if(recording&&next.steps!==lastRecorded){
+    if(!recorder.append(next)||recorder.frames.length>=1000){recording=false;$('record').textContent='● 开始记录轨迹';toast('已达到记录上限，请导出轨迹。');}
+    lastRecorded=next.steps;$('record-status').textContent=`已记录 ${recorder.frames.length} 帧 / ${(recorder.bytes/1048576).toFixed(1)} MiB；上限 1000 帧 / 20 MiB。`;
+  }
   const sceneNames=[...new Set(next.molecules.map(moleculeName))];$('scene-title').textContent=sceneNames.length>1?'分子混合场景':sceneNames.length?sceneNames[0]+'的运动':'等待添加分子';
   const present=new Set(next.atoms.map(a=>a.element));const signature=[...present].sort().join(',');if($('legend').dataset.elements!==signature){$('legend').replaceChildren();for(const element of next.elements.filter(e=>present.has(e.number))){const item=document.createElement('span'),dot=document.createElement('i');dot.style.backgroundColor=`rgb(${element.cpk.map(v=>Math.round(v*255)).join(',')})`;item.append(dot,document.createTextNode(element.symbol));$('legend').append(item);}$('legend').dataset.elements=signature;}
 }
@@ -46,13 +49,13 @@ $('model').addEventListener('change',async()=>{const model=$('model').value;if(a
 $('angular-velocity').addEventListener('click',guard(()=>{if(selected)return perform({action:'angular_velocity',id:selected,value:['wx','wy','wz'].map(value)},'已设置角速度');}));
 $('record').addEventListener('click',guard(async()=>{
   if(replaying){toast('请先返回实时模拟',true);return;}
-  if(!recording){experiment=await api('api/experiment');frames=[];lastRecorded=null;}
+  if(!recording){experiment=await api('api/experiment');recorder=new TrajectoryRecorder();lastRecorded=null;}
   recording=!recording;$('record').textContent=recording?'■ 停止记录':'● 开始记录轨迹';
 }));
 $('export').addEventListener('click',guard(async()=>{
   const metadata=await api('api/experiment');
   if(recording){recording=false;$('record').textContent='● 开始记录轨迹';}
-  const data={...metadata,recording_start:experiment,trajectory_schema:'terramol-render-trajectory-1',frames:frames.length?frames:[state]};
+  const data={...metadata,recording_start:experiment,trajectory_schema:'terramol-render-trajectory-1',frames:recorder.frames.length?recorder.frames:[state]};
   const url=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='TerraMol-experiment.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }));
 function showReplay(i){const frame=replayFrames[i];if(!frame)return;view.setState(frame);state=frame;selected=view.selected;updateSelection(true);$('time').textContent=(frame.time_fs/1000).toFixed(3)+' ps';$('live-badge').textContent=`轨迹回放 ${i+1} / ${replayFrames.length}`;$('step-count').textContent=Number(frame.steps).toLocaleString()+' 个固定物理步';$('measured-temperature').textContent=Number(frame.measured_temperature).toFixed(1)+' K';for(const [id,key]of [['kinetic','kinetic_kcal_mol'],['potential','potential_kcal_mol'],['total-energy','total_kcal_mol'],['energy-change','energy_change_kcal_mol']])$(id).textContent=frame[key]==null?'不适用':Number(frame[key]).toFixed(5);$('dof').textContent=frame.degrees_of_freedom;$('backend-label').textContent='轨迹回放 · '+frame.model;$('model-note').textContent='仅展示导出的观测帧，不重新积分；实时模拟已暂停。';$('simulation-parameters').textContent=`${frame.box_size} Å 模拟盒 · 固定步长 ${frame.timestep_fs} fs`;$('molecule-count').textContent=frame.molecules.length;$('atom-count').textContent=frame.atoms.length;}

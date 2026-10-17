@@ -20,7 +20,7 @@ LJ particles with explicit parameters. A smaller ZIP omits the optional runtime.
 - KE, PE, total, measured temperature, DOF, absolute energy change; unavailable Native
   PE/total clearly marked. LJ values come from LAMMPS, with 3N temperature convention.
 - f64 initial state, configuration, seed and step-tagged action export; up to 1000
-  sampled trajectory frames, JSON download/import and scrubbing without reintegration.
+  sampled trajectory frames (20 MiB recording budget), JSON download/import and scrubbing without reintegration.
 - Additive ABI 1 angular and observables functions; Python and C# bindings updated,
   unchanged render snapshot layout. Atom velocity includes rotation, COM is separate.
 - Full portable runtime with license notices and matching source archive (including
