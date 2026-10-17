@@ -1,0 +1,261 @@
+//! # Safety
+//! Every non-null pointer must address writable/readable memory of the declared
+//! length and remain valid throughout the call. No API retains caller pointers.
+//! Handles are opaque monotonic tokens, never addresses. Calls are serialized.
+#![allow(clippy::missing_safety_doc)]
+use crate::{
+    chemistry,
+    error::{Code, Error, Result},
+    snapshot::{Snapshot, ABI_VERSION},
+    Simulation,
+};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    panic::{catch_unwind, AssertUnwindSafe},
+    sync::{Arc, Mutex, OnceLock},
+};
+struct Registry {
+    next: u64,
+    worlds: BTreeMap<u64, Simulation>,
+}
+static REGISTRY: OnceLock<Mutex<Registry>> = OnceLock::new();
+thread_local! {static LAST_ERROR:RefCell<String>=const{RefCell::new(String::new())};}
+fn boundary(f: impl FnOnce() -> Result<()>) -> i32 {
+    match catch_unwind(AssertUnwindSafe(f)) {
+        Ok(Ok(())) => {
+            LAST_ERROR.with(|s| s.borrow_mut().clear());
+            Code::Ok as i32
+        }
+        Ok(Err(e)) => {
+            LAST_ERROR.with(|s| *s.borrow_mut() = e.message);
+            e.code as i32
+        }
+        Err(_) => {
+            LAST_ERROR.with(|s| *s.borrow_mut() = "Rust panic contained at ABI boundary".into());
+            Code::Panic as i32
+        }
+    }
+}
+fn registry() -> Result<std::sync::MutexGuard<'static, Registry>> {
+    REGISTRY
+        .get_or_init(|| {
+            Mutex::new(Registry {
+                next: 1,
+                worlds: BTreeMap::new(),
+            })
+        })
+        .lock()
+        .map_err(|_| Error::new(Code::Panic, "registry poisoned; restart process"))
+}
+fn with_world(f: u64, op: impl FnOnce(&mut Simulation) -> Result<()>) -> Result<()> {
+    op(registry()?
+        .worlds
+        .get_mut(&f)
+        .ok_or_else(|| Error::new(Code::NotFound, "invalid or released handle"))?)
+}
+fn definition(kind: u32) -> Result<Arc<crate::molecule::MoleculeDefinition>> {
+    static T: OnceLock<[Arc<crate::molecule::MoleculeDefinition>; 3]> = OnceLock::new();
+    T.get_or_init(|| {
+        std::array::from_fn(|i| {
+            Arc::new(chemistry::template(i as u32).expect("validated template"))
+        })
+    })
+    .get(kind as usize)
+    .cloned()
+    .ok_or_else(|| Error::invalid("unknown template"))
+}
+fn pointer<T>(p: *const T) -> Result<()> {
+    if p.is_null() {
+        Err(Error::invalid("null pointer"))
+    } else {
+        Ok(())
+    }
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_abi_version(out: *mut u32) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        unsafe { out.write(ABI_VERSION) };
+        Ok(())
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_create(size: f64, dt: f64, out: *mut u64) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        unsafe { out.write(0) };
+        let sim = Simulation::native(size, dt)?;
+        let mut r = registry()?;
+        let id = r.next;
+        r.next = r
+            .next
+            .checked_add(1)
+            .ok_or_else(|| Error::new(Code::Capacity, "handle space exhausted"))?;
+        r.worlds.insert(id, sim);
+        unsafe { out.write(id) };
+        Ok(())
+    })
+}
+#[no_mangle]
+pub extern "C" fn me_destroy(handle: u64) -> i32 {
+    boundary(|| {
+        registry()?
+            .worlds
+            .remove(&handle)
+            .ok_or_else(|| Error::new(Code::NotFound, "invalid or released handle"))?;
+        Ok(())
+    })
+}
+#[no_mangle]
+pub extern "C" fn me_step(handle: u64, steps: u32) -> i32 {
+    boundary(|| with_world(handle, |s| s.step(steps)))
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_spawn(
+    handle: u64,
+    kind: u32,
+    x: f64,
+    y: f64,
+    z: f64,
+    out: *mut u64,
+) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        unsafe { out.write(0) };
+        with_world(handle, |s| {
+            let id = s
+                .world
+                .spawn_molecule(definition(kind)?, [x, y, z], [0., 0., 0., 1.])?;
+            unsafe { out.write(id) };
+            Ok(())
+        })
+    })
+}
+#[no_mangle]
+pub extern "C" fn me_batch_spawn(
+    handle: u64,
+    kind: u32,
+    count: u32,
+    seed: u64,
+    retries: u32,
+) -> i32 {
+    boundary(|| {
+        with_world(handle, |s| {
+            s.world
+                .batch_spawn_molecules(definition(kind)?, count, seed, retries)?;
+            Ok(())
+        })
+    })
+}
+#[no_mangle]
+pub extern "C" fn me_remove(handle: u64, id: u64) -> i32 {
+    boundary(|| with_world(handle, |s| s.world.remove_molecule(id)))
+}
+#[no_mangle]
+pub extern "C" fn me_clear(handle: u64) -> i32 {
+    boundary(|| {
+        with_world(handle, |s| {
+            s.world.clear_all();
+            Ok(())
+        })
+    })
+}
+#[no_mangle]
+pub extern "C" fn me_set_velocity(handle: u64, id: u64, x: f64, y: f64, z: f64) -> i32 {
+    boundary(|| with_world(handle, |s| s.world.set_molecule_velocity(id, [x, y, z])))
+}
+#[no_mangle]
+pub extern "C" fn me_thermal(handle: u64, kelvin: f64, seed: u64) -> i32 {
+    boundary(|| with_world(handle, |s| s.world.apply_thermal_velocities(kelvin, seed)))
+}
+#[no_mangle]
+pub extern "C" fn me_flow(handle: u64, x: f64, y: f64, z: f64) -> i32 {
+    boundary(|| with_world(handle, |s| s.world.apply_directed_flow([x, y, z])))
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_snapshot_size(handle: u64, out: *mut u64) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        with_world(handle, |s| {
+            unsafe { out.write(Snapshot::capture(&s.world)?.byte_len() as u64) };
+            Ok(())
+        })
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_snapshot_copy(
+    handle: u64,
+    buffer: *mut u8,
+    capacity: u64,
+    written: *mut u64,
+) -> i32 {
+    boundary(|| {
+        pointer(written)?;
+        unsafe { written.write(0) };
+        with_world(handle, |s| {
+            let snap = Snapshot::capture(&s.world)?;
+            let n = snap.byte_len();
+            unsafe { written.write(n as u64) };
+            if capacity < n as u64 {
+                return Err(Error::new(
+                    Code::Capacity,
+                    "snapshot buffer too small; retry using required size",
+                ));
+            }
+            pointer(buffer)?;
+            let b = snap.bytes();
+            unsafe { std::ptr::copy_nonoverlapping(b.as_ptr(), buffer, n) };
+            Ok(())
+        })
+    })
+}
+#[repr(C)]
+pub struct ElementInfo {
+    pub number: u32,
+    pub cpk: [f32; 3],
+    pub vdw: f64,
+    pub mass: f64,
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_element(number: u32, out: *mut ElementInfo) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        let e = chemistry::by_number(number)?;
+        unsafe {
+            out.write(ElementInfo {
+                number: e.number,
+                cpk: e.cpk,
+                vdw: e.vdw,
+                mass: e.mass,
+            })
+        };
+        Ok(())
+    })
+}
+/// Does not clear the error being read. `required` includes the terminating NUL.
+#[no_mangle]
+pub unsafe extern "C" fn me_last_error(buffer: *mut u8, capacity: u64, required: *mut u64) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        if required.is_null() {
+            return Code::Invalid as i32;
+        }
+        LAST_ERROR.with(|s| {
+            let s = s.borrow();
+            let n = s.len() + 1;
+            unsafe { required.write(n as u64) };
+            if capacity < n as u64 {
+                return Code::Capacity as i32;
+            }
+            if buffer.is_null() {
+                return Code::Invalid as i32;
+            }
+            unsafe {
+                std::ptr::copy_nonoverlapping(s.as_ptr(), buffer, s.len());
+                buffer.add(s.len()).write(0);
+            }
+            Code::Ok as i32
+        })
+    }))
+    .unwrap_or(Code::Panic as i32)
+}

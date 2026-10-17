@@ -1,9 +1,11 @@
 pub mod actions;
 pub mod chemistry;
 pub mod error;
+pub mod ffi;
 pub mod geometry;
 pub mod molecule;
 pub mod physics;
+pub mod snapshot;
 pub mod world;
 
 use error::Result;
