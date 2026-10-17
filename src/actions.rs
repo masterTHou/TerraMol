@@ -48,22 +48,43 @@ impl World {
     }
     /// Independent Maxwell COM samples; no removal of net momentum or exact rescaling.
     pub fn apply_thermal_velocities(&mut self, temperature: f64, seed: u64) -> Result<()> {
+        let ids: Vec<_> = self.molecules.iter().map(|m| m.id).collect();
+        self.apply_thermal_velocities_for(&ids, temperature, seed)
+    }
+    /// Samples only the requested molecules, without disturbing the rest of the scene.
+    pub fn apply_thermal_velocities_for(
+        &mut self,
+        ids: &[MoleculeId],
+        temperature: f64,
+        seed: u64,
+    ) -> Result<()> {
         if !temperature.is_finite() || !(0.0..=1e8).contains(&temperature) {
             return Err(Error::invalid("temperature must be 0..1e8 K"));
         }
         let mut rng = Rng::new(seed);
-        let values: Vec<_> = self
-            .molecules
+        let mut seen = std::collections::BTreeSet::new();
+        let values: Vec<_> = ids
             .iter()
-            .map(|m| {
-                (
+            .map(|id| {
+                if !seen.insert(*id) {
+                    return Err(Error::invalid("duplicate thermal molecule ID"));
+                }
+                let m = self
+                    .molecules
+                    .iter()
+                    .find(|m| m.id == *id)
+                    .ok_or_else(|| Error::new(Code::NotFound, "molecule not found"))?;
+                Ok((
                     m.id,
                     std::array::from_fn(|_| {
                         rng.normal() * (KB_VELOCITY * temperature / m.definition.mass).sqrt()
                     }),
-                )
+                ))
             })
-            .collect();
+            .collect::<Result<_>>()?;
+        if values.iter().any(|(_, v)| !finite(*v)) {
+            return Err(Error::invalid("thermal velocity overflow"));
+        }
         for (id, v) in values {
             self.set_molecule_velocity(id, v)?;
         }

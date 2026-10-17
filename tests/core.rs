@@ -1,6 +1,21 @@
 use mol_engine_core::{actions::KB_VELOCITY, chemistry::*, geometry::*, world::World, Simulation};
 use std::sync::Arc;
 #[test]
+fn selective_thermal_preserves_existing_motion() {
+    let mut w = World::new(40.).unwrap();
+    let def = Arc::new(template(0).unwrap());
+    let ids = w.batch_spawn_molecules(def, 2, 42, 100).unwrap();
+    w.set_molecule_velocity(ids[0], [0.01, 0., 0.]).unwrap();
+    w.apply_thermal_velocities_for(&[ids[1]], 300., 42).unwrap();
+    assert_eq!(w.molecules()[0].velocity, [0.01, 0., 0.]);
+    assert!(norm(w.molecules()[1].velocity) > 0.);
+    let before = w.molecules()[0].velocity;
+    assert!(w
+        .apply_thermal_velocities_for(&[ids[0], u64::MAX], 500., 42)
+        .is_err());
+    assert_eq!(w.molecules()[0].velocity, before);
+}
+#[test]
 fn box_and_step_limits() {
     let d = Arc::new(parse_xyz("1\nH\nH 0 0 0").unwrap());
     let mut w = World::new(2.4).unwrap();

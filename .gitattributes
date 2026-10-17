@@ -9,4 +9,8 @@
 *.c text eol=lf
 *.cpp text eol=lf
 *.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
 *.svg text eol=lf

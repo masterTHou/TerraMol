@@ -8,6 +8,8 @@ pub mod geometry;
 pub mod molecule;
 pub mod physics;
 pub mod snapshot;
+#[cfg(feature = "viewer")]
+pub mod viewer;
 pub mod world;
 
 use error::Result;

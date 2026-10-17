@@ -11,4 +11,5 @@ unity/obj/
 .vs/
 __pycache__/
 *.pyc
+/TerraMol.exe
 

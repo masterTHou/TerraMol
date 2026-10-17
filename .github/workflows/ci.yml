@@ -22,6 +22,17 @@ jobs:
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo test --all-features
       - run: cargo build --release
+      - name: Build and test portable viewer (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/build-viewer.ps1
+          python tests/viewer_smoke.py TerraMol.exe
+          python scripts/package-viewer.py
+      - name: Build and test local viewer (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cargo build --release --features viewer --bin terramol_viewer
+          python tests/viewer_smoke.py target/release/terramol_viewer
       - name: DLL ABI smoke (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -47,6 +58,9 @@ jobs:
             target/release/libmol_engine_core.so
             target/release/libmol_engine_core.dylib
             include/mol_engine_core.h
+            TerraMol.exe
+            artifacts/release/TerraMol-Viewer-*.zip
+            artifacts/release/VIEWER-SHA256SUMS.txt
   lammps:
     runs-on: ubuntu-latest
     steps:
