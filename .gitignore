@@ -9,4 +9,6 @@ unity/Temp/
 unity/Logs/
 unity/obj/
 .vs/
+__pycache__/
+*.pyc
 
