@@ -28,7 +28,7 @@
   <section class="control-group">
     <div class="section-title"><span>02</span><h2>让分子动起来</h2></div>
     <label class="field-label" for="temperature">热速度温度 <span>K</span></label>
-    <div class="input-action"><input id="temperature" type="number" min="0" max="5000" step="50" value="300" aria-label="热速度温度，开尔文"><button id="thermal" class="secondary">施加热运动</button></div>
+    <div class="input-action"><input id="temperature" type="number" min="0" max="5000" step="any" value="300" aria-label="热速度温度，开尔文"><button id="thermal" class="secondary">施加热运动</button></div>
     <p class="field-help">温度越高，初始运动通常越快。按分子质量采样质心速度，不是恒温器。</p>
     <button id="play" class="primary"><span id="play-icon">Ⅱ</span><span id="play-label">暂停模拟</span><kbd>SPACE</kbd></button>
     <label class="field-label speed-label" for="speed">播放速度 <output id="speed-value">1.0×</output></label>
@@ -57,7 +57,7 @@
     <div class="selected-title"><strong id="selected-name">水</strong><span id="selected-id">#1</span></div>
     <dl class="details"><div><dt>总质量</dt><dd id="selected-mass">—</dd></div><div><dt>质心速度</dt><dd id="selected-speed">—</dd></div></dl>
     <label class="field-label">设置整体速度 <span>Å/fs</span></label>
-    <div class="velocity-fields"><label>X<input id="vx" type="number" step="0.001" value="0.01"></label><label>Y<input id="vy" type="number" step="0.001" value="0"></label><label>Z<input id="vz" type="number" step="0.001" value="0"></label></div>
+    <div class="velocity-fields"><label>X<input id="vx" type="number" step="any" value="0.01"></label><label>Y<input id="vy" type="number" step="any" value="0"></label><label>Z<input id="vz" type="number" step="any" value="0"></label></div>
     <button id="velocity" class="secondary full-width">应用速度</button><p class="field-help">箭头放大显示速度方向，不改变模拟数值。</p>
     <button id="remove" class="text-button danger">删除选中的分子 <kbd>DEL</kbd></button>
   </div>
