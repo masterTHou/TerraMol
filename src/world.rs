@@ -26,13 +26,19 @@ impl World {
     pub fn new(size: f64) -> Result<Self> {
         static ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
         let sim_box = SimBox::new(size)?;
-        let identity = ID
-            .fetch_update(
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-                |v| v.checked_add(1),
-            )
-            .map_err(|_| Error::new(Code::Capacity, "world identities exhausted"))?;
+        use std::sync::atomic::Ordering::Relaxed;
+        let identity = loop {
+            let current = ID.load(Relaxed);
+            let next = current
+                .checked_add(1)
+                .ok_or_else(|| Error::new(Code::Capacity, "world identities exhausted"))?;
+            if ID
+                .compare_exchange_weak(current, next, Relaxed, Relaxed)
+                .is_ok()
+            {
+                break current;
+            }
+        };
         Ok(Self {
             molecules: Vec::new(),
             atoms: Vec::new(),

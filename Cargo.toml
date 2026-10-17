@@ -2,6 +2,7 @@
 name = "mol_engine_core"
 version = "1.0.0"
 edition = "2021"
+rust-version = "1.88"
 license = "MIT"
 description = "TerraMol: a Rust-owned molecular simulation core with a versioned C ABI"
 

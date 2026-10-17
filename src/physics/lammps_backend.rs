@@ -124,9 +124,11 @@ impl PhysicsBackend for LammpsBackend {
         l.command(&format!("run {steps}"))?;
         let x = l.gather("x", w.atoms().len())?;
         let v = l.gather("v", w.atoms().len())?;
-        if x.chunks_exact(3)
-            .chain(v.chunks_exact(3))
-            .any(|p| !finite([p[0], p[1], p[2]]))
+        if x.as_chunks::<3>()
+            .0
+            .iter()
+            .chain(v.as_chunks::<3>().0.iter())
+            .any(|p| !finite(*p))
         {
             return Err(Error::new(Code::Backend, "nonfinite LAMMPS state"));
         }
