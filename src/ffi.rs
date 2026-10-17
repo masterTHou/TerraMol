@@ -217,6 +217,34 @@ pub struct ElementInfo {
     pub vdw: f64,
     pub mass: f64,
 }
+#[repr(C)]
+pub struct MoleculeInfo {
+    pub center: [f64; 3],
+    pub velocity: [f64; 3],
+    pub mass: f64,
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_molecule_info(handle: u64, id: u64, out: *mut MoleculeInfo) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        with_world(handle, |s| {
+            let m = s
+                .world
+                .molecules()
+                .iter()
+                .find(|m| m.id == id)
+                .ok_or_else(|| Error::new(Code::NotFound, "molecule not found"))?;
+            unsafe {
+                out.write(MoleculeInfo {
+                    center: m.center,
+                    velocity: m.velocity,
+                    mass: m.definition.mass,
+                })
+            };
+            Ok(())
+        })
+    })
+}
 #[no_mangle]
 pub unsafe extern "C" fn me_element(number: u32, out: *mut ElementInfo) -> i32 {
     boundary(|| {

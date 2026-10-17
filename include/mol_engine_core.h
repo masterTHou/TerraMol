@@ -19,6 +19,8 @@ typedef struct {uint32_t abi_version,header_bytes,atom_count,bond_count;uint64_t
 typedef struct {float position[3],velocity[3];uint32_t element,reserved;uint64_t molecule_id;} me_render_atom;
 typedef struct {uint32_t a,b,order,reserved;} me_render_bond;
 typedef struct {uint32_t number;float cpk[3];double vdw,mass;} me_element_info;
+typedef struct {double center[3],velocity[3],mass;} me_molecule_info;
+int32_t ME_CALL me_molecule_info(me_handle h,uint64_t id,me_molecule_info *out);
 int32_t ME_CALL me_abi_version(uint32_t *out);
 int32_t ME_CALL me_create(double box_size,double dt_fs,me_handle *out);
 int32_t ME_CALL me_destroy(me_handle h);

@@ -38,3 +38,20 @@ requires unwind builds and does not handle abort/OOM or C++ termination. A poiso
 registry fails closed. Calls across all handles currently serialize for safety.
 No zero-copy API. Python ctypes test is also a usable headless entry point, not
 a packaged RL environment.
+
+## Phase 3 — Unity integration
+
+Implemented: all five requested C# classes, editor scene setup, pooled atoms and
+bonds, CPK from Rust, whole-molecule highlighting, Rust COM velocity arrows,
+debug controls and fixed-step scheduler. MaterialPropertyBlock and two shared
+materials avoid one material per atom. Re-enable resets cached versions.
+
+Executed: `powershell -ExecutionPolicy Bypass -File scripts/test-bridge.ps1`:
+actual C# P/Invoke layout/lifecycle/snapshot tests pass against release DLL.
+`cargo build --release` passes. Unity Editor is unavailable: full runtime/editor
+validation remains pending; follow `unity/README.md`. The test does not compile
+UnityEngine-dependent files or claim Play mode verification.
+
+Limitations: idealized sphere/cylinder rendering, no bond-order graphics,
+no camera navigation, no GPU instancing, per-atom Marshal boxing; suitable for
+prototype scenes. Scene generator runs in the editor. No player binary is supplied.
