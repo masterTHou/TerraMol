@@ -29,6 +29,7 @@ int32_t ME_CALL me_create_lj(const uint8_t *path,uint32_t length,double box_size
 int32_t ME_CALL me_spawn_particle(me_handle h,uint32_t atomic_number,double x,double y,double z,uint64_t *id);
 int32_t ME_CALL me_destroy(me_handle h);
 int32_t ME_CALL me_step(me_handle h,uint32_t steps);
+int32_t ME_CALL me_reset_template(me_handle h,uint32_t kind,uint32_t count,uint64_t seed,double kelvin);
 int32_t ME_CALL me_spawn(me_handle h,uint32_t kind,double x,double y,double z,uint64_t *id);
 int32_t ME_CALL me_batch_spawn(me_handle h,uint32_t kind,uint32_t count,uint64_t seed,uint32_t retries);
 int32_t ME_CALL me_remove(me_handle h,uint64_t id);

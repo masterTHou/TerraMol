@@ -18,16 +18,35 @@ pub struct Bond {
 }
 #[derive(Debug)]
 pub struct MoleculeDefinition {
-    pub name: String,
-    pub atoms: Vec<AtomDefinition>,
-    pub bonds: Vec<Bond>,
-    pub mass: f64,
-    pub source_com: Vec3,
-    pub radius: f64,
+    pub(crate) name: String,
+    pub(crate) atoms: Vec<AtomDefinition>,
+    pub(crate) bonds: Vec<Bond>,
+    pub(crate) mass: f64,
+    pub(crate) source_com: Vec3,
+    pub(crate) radius: f64,
 }
 impl MoleculeDefinition {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn atoms(&self) -> &[AtomDefinition] {
+        &self.atoms
+    }
+    pub fn bonds(&self) -> &[Bond] {
+        &self.bonds
+    }
+    pub fn mass(&self) -> f64 {
+        self.mass
+    }
+    pub fn source_com(&self) -> Vec3 {
+        self.source_com
+    }
+    pub fn radius(&self) -> f64 {
+        self.radius
+    }
     pub fn new(name: &str, mut atoms: Vec<AtomDefinition>, bonds: Vec<Bond>) -> Result<Self> {
         if atoms.is_empty()
+            || atoms.len() > 100_000
             || atoms.iter().any(|a| {
                 !finite(a.local)
                     || !a.element.mass.is_finite()
@@ -41,13 +60,16 @@ impl MoleculeDefinition {
         {
             return Err(Error::invalid("invalid molecular definition"));
         }
-        let mass = atoms.iter().map(|a| a.element.mass).sum();
+        let mass: f64 = atoms.iter().map(|a| a.element.mass).sum();
         let com = scale(
             atoms
                 .iter()
                 .fold([0.; 3], |p, a| add(p, scale(a.local, a.element.mass))),
             1. / mass,
         );
+        if !mass.is_finite() || !finite(com) {
+            return Err(Error::invalid("invalid molecular mass/center"));
+        }
         for a in &mut atoms {
             a.local = sub(a.local, com);
         }
@@ -55,6 +77,9 @@ impl MoleculeDefinition {
             .iter()
             .map(|a| norm(a.local) + a.element.vdw)
             .fold(0., f64::max);
+        if !radius.is_finite() || radius <= 0. || radius > 1e12 {
+            return Err(Error::invalid("invalid molecular radius"));
+        }
         Ok(Self {
             name: name.into(),
             atoms,

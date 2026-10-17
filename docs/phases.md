@@ -90,3 +90,45 @@ bonded force fields, no MPI, no 64-bit tags, no allocator-returning extract APIs
 no backend checkpoint rollback. Polyatomic templates are explicitly rejected.
 This validates the specified LJ system, not water/methane/benzene dynamics.
 Linux/macOS LAMMPS are covered by a configured CI job, not yet claimed locally.
+
+## Phase 5 — Extension contracts
+
+Implemented: ConformerGenerator trait, validated coordinate/energy metadata,
+signed dihedral measurement and graph-cut editing (rings rejected), unified
+Action/Observation, f64 headless atom observations, deterministic staged reset,
+monotonic IDs across episodes, C ABI reset, standalone Python adapter and C# reset.
+Definitions expose read-only accessors; versions/box/timestep cannot be edited
+without core operations. World identity invalidates backend caches on Rust world
+replacement. Public C ABI remains v1; new symbols are additive.
+
+Validation: `cargo test --test extensions` covers reset/action invariants,
+dihedral geometry/ring rejection and energy provenance. Final regression commands
+and actual results are recorded below after execution. There is no implemented
+conformer proposal search, optimization, reward function, Gym wrapper or trainer.
+
+Limits: dihedral geometry does not validate sterics; Python/C observe f32 render
+data while Rust observations also expose f64 atom state. Reset does not guarantee
+rollback of arbitrary future physics backend failures. See `docs/extensions.md`.
+
+## Final local regression — 2026-10-17
+
+Windows x64, Rust/Cargo 1.95.0, .NET Framework C# compiler, Python 3.12.3:
+
+| Executed command | Result |
+|---|---|
+| `cargo fmt --check` | pass |
+| `cargo clippy --all-targets --all-features -- -D warnings` | pass |
+| `cargo test` | 14 tests pass; no LAMMPS installation needed |
+| `cargo test --all-features` | 15 pass; 3 environment-dependent tests ignored |
+| Three opt-in LAMMPS tests (commands above) | all explicitly executed and pass |
+| `cargo build --release` | pass; Windows x64 cdylib produced |
+| `python tests/dll_smoke.py target/release/mol_engine_core.dll` | pass |
+| `python tests/python_headless.py target/release/mol_engine_core.dll` | pass |
+| `powershell -ExecutionPolicy Bypass -File scripts/test-bridge.ps1` | pass, including seeded reset |
+| `cargo run --example headless` | pass; 50 molecules / 150 atoms |
+| `cargo run --features lammps --example lammps_lj` | pass; energy results above |
+| C11 public header layout and installed LAMMPS header static assertions | pass |
+
+Unity Editor/Play mode/player/IL2CPP remain unverified. Cross-platform CI is
+configured; consult its actual run status rather than extrapolating local results.
+No LAMMPS binary or downloaded wheel is included in the release.

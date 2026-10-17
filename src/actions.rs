@@ -6,6 +6,28 @@ use crate::{
 };
 /// k_B in amu (Angstrom/fs)^2 / K.
 pub const KB_VELOCITY: f64 = 8.31446261815324e-7;
+#[derive(Clone)]
+pub enum Action {
+    Spawn {
+        definition: std::sync::Arc<crate::molecule::MoleculeDefinition>,
+        center: Vec3,
+        rotation: [f64; 4],
+    },
+    Batch(crate::environment::SpawnBatch),
+    Remove(MoleculeId),
+    Clear,
+    Velocity {
+        id: MoleculeId,
+        value: Vec3,
+    },
+    Thermal {
+        kelvin: f64,
+        seed: u64,
+    },
+    Flow(Vec3),
+    Step(u32),
+    Reset(crate::environment::ResetSpec),
+}
 impl World {
     pub fn set_molecule_velocity(&mut self, id: MoleculeId, velocity: Vec3) -> Result<()> {
         if !finite(velocity) {

@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "{} molecules, {} atoms, state {}",
         sim.world.molecules().len(),
         sim.world.atoms().len(),
-        sim.world.state_version
+        sim.world.state_version()
     );
     Ok(())
 }

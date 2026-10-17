@@ -18,10 +18,10 @@ fn box_and_step_limits() {
 fn templates() {
     for (k, n, b) in [(0, 3, 2), (1, 5, 4), (2, 12, 12)] {
         let m = template(k).unwrap();
-        assert_eq!(m.atoms.len(), n);
-        assert_eq!(m.bonds.len(), b);
-        for bond in &m.bonds {
-            let length = norm(sub(m.atoms[bond.a].local, m.atoms[bond.b].local));
+        assert_eq!(m.atoms().len(), n);
+        assert_eq!(m.bonds().len(), b);
+        for bond in m.bonds() {
+            let length = norm(sub(m.atoms()[bond.a].local, m.atoms()[bond.b].local));
             let target = match k {
                 0 => 0.9572,
                 1 => 1.09,
@@ -37,7 +37,7 @@ fn templates() {
         }
         assert!(
             norm(
-                m.atoms
+                m.atoms()
                     .iter()
                     .fold([0.; 3], |v, a| add(v, scale(a.local, a.element.mass)))
             ) < 1e-12
@@ -47,8 +47,8 @@ fn templates() {
 #[test]
 fn xyz() {
     let m = parse_xyz("3\nwater\nO 0 0 0\nH .9572 0 0\nH -.24 .927 0\n").unwrap();
-    assert_eq!(m.bonds.len(), 2);
-    assert!(m.bonds.iter().all(|b| b.order.is_none()));
+    assert_eq!(m.bonds().len(), 2);
+    assert!(m.bonds().iter().all(|b| b.order.is_none()));
     for s in [
         "",
         "0\nx",
@@ -69,7 +69,9 @@ fn batch_delete() {
         assert!(Arc::ptr_eq(&a.definition, &def));
         for b in w.molecules() {
             if a.id != b.id {
-                assert!(norm(sub(a.center, b.center)) >= a.definition.radius + b.definition.radius);
+                assert!(
+                    norm(sub(a.center, b.center)) >= a.definition.radius() + b.definition.radius()
+                );
             }
         }
     }
@@ -111,7 +113,7 @@ fn rigid_reflection_reproducible() {
                 .abs()
                 < 1e-12
         );
-        assert!(s.world.molecules()[0].center[0] >= s.world.molecules()[0].definition.radius);
+        assert!(s.world.molecules()[0].center[0] >= s.world.molecules()[0].definition.radius());
         s
     }
     assert_eq!(
@@ -136,7 +138,7 @@ fn seed_and_temperature() {
     for range in [0..4000, 4000..8000] {
         let t = w.molecules()[range]
             .iter()
-            .map(|m| m.definition.mass * dot(m.velocity, m.velocity) / (3. * KB_VELOCITY))
+            .map(|m| m.definition.mass() * dot(m.velocity, m.velocity) / (3. * KB_VELOCITY))
             .sum::<f64>()
             / 4000.;
         assert!((t / 300. - 1.).abs() < 0.04, "{t}");

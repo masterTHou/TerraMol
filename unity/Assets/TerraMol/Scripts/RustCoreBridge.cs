@@ -40,6 +40,7 @@ namespace TerraMol {
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_create(double size, double dt, out ulong handle);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_destroy(ulong h);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_step(ulong h, uint steps);
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_reset_template(ulong h, uint kind, uint count, ulong seed, double kelvin);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_batch_spawn(ulong h, uint kind, uint count, ulong seed, uint retries);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_remove(ulong h, ulong id);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] static extern int me_clear(ulong h);
@@ -75,6 +76,7 @@ namespace TerraMol {
         }
         void Alive() { if (handle == 0) throw new ObjectDisposedException("RustCoreBridge"); }
         public void Step(uint steps) { lock (gate) { Alive(); Check(me_step(handle, steps)); } }
+        public void Reset(uint kind, uint count, ulong seed, double kelvin) { lock (gate) { Alive(); Check(me_reset_template(handle, kind, count, seed, kelvin)); } }
         public void Spawn(uint kind, uint count, ulong seed) { lock (gate) { Alive(); Check(me_batch_spawn(handle, kind, count, seed, 1000)); } }
         public void Remove(ulong id) { lock (gate) { Alive(); Check(me_remove(handle, id)); } }
         public void Clear() { lock (gate) { Alive(); Check(me_clear(handle)); } }

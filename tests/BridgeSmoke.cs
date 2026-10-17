@@ -11,6 +11,9 @@ public static class BridgeSmoke {
             core.Remove(id);s=core.ReadSnapshot();Assert(s.Atoms.Length==147);
             foreach(var b in s.Bonds)Assert(b.A<147 && b.B<147);
             core.Clear();Assert(core.ReadSnapshot().Atoms.Length==0);
+            core.Reset(0,50,42,300);s=core.ReadSnapshot();var first=s.Atoms[0];
+            core.Step(100);core.Reset(0,50,42,300);s=core.ReadSnapshot();
+            Assert(first.X==s.Atoms[0].X && first.Vx==s.Atoms[0].Vx && first.MoleculeId!=s.Atoms[0].MoleculeId);
         }
         var disposed=new RustCoreBridge();disposed.Dispose();disposed.Dispose();
         try{disposed.Step(1);throw new Exception("Missing disposed check");}catch(ObjectDisposedException){}

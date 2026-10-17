@@ -1,0 +1,66 @@
+name: Core and ABI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  core:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo test --all-features
+      - run: cargo build --release
+      - name: DLL ABI smoke (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          python tests/dll_smoke.py target/release/mol_engine_core.dll
+          python tests/python_headless.py target/release/mol_engine_core.dll
+          powershell -ExecutionPolicy Bypass -File scripts/test-bridge.ps1
+      - name: Shared library ABI smoke (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          python tests/dll_smoke.py target/release/libmol_engine_core.so
+          python tests/python_headless.py target/release/libmol_engine_core.so
+          cc -std=c11 -Wall -Wextra -Werror -I include -c tests/c_layout.c -o target/c-layout.o
+      - name: Shared library ABI smoke (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          python tests/dll_smoke.py target/release/libmol_engine_core.dylib
+          python tests/python_headless.py target/release/libmol_engine_core.dylib
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core-${{ runner.os }}
+          path: |
+            target/release/mol_engine_core.dll
+            target/release/libmol_engine_core.so
+            target/release/libmol_engine_core.dylib
+            include/mol_engine_core.h
+  lammps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build pinned serial LAMMPS
+        run: |
+          git clone --depth 1 --branch stable_29Aug2024_update3 https://github.com/lammps/lammps.git /tmp/lammps
+          cmake -S /tmp/lammps/cmake -B /tmp/lammps-build -D BUILD_SHARED_LIBS=ON -D BUILD_MPI=OFF -D BUILD_OMP=OFF -D CMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/lammps-build --target lammps --parallel 2
+          c++ -std=c++17 -Wall -Wextra -Werror -I /tmp/lammps/src -c tests/lammps_header_check.cpp -o /tmp/header-check.o
+      - name: Physical integration and error conversion
+        env:
+          LAMMPS_LIBRARY: /tmp/lammps-build/liblammps.so
+        run: |
+          cargo test --features lammps --test lammps -- --ignored --test-threads=1
+          cargo test --features lammps --lib -- --ignored --test-threads=1
+          cargo run --features lammps --example lammps_lj

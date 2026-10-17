@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360">
+<defs><linearGradient id="bg"><stop stop-color="#071629"/><stop offset="1" stop-color="#12374b"/></linearGradient><radialGradient id="atom"><stop stop-color="#c7fff1"/><stop offset=".4" stop-color="#54d6c1"/><stop offset="1" stop-color="#17858c"/></radialGradient></defs>
+<rect width="1280" height="360" rx="24" fill="url(#bg)"/>
+<g stroke="#28758a" opacity=".3"><path d="M0 280H1280M0 320H1280M0 240H1280M0 200H1280M0 160H1280M0 120H1280M0 80H1280"/><path d="M820 0V360M900 0V360M980 0V360M1060 0V360M1140 0V360M1220 0V360"/></g>
+<text x="64" y="150" fill="#f0fbff" font-family="Segoe UI,Arial,sans-serif" font-weight="700" font-size="82">TerraMol</text>
+<text x="68" y="203" fill="#9cc6d4" font-family="Segoe UI,Arial,sans-serif" font-size="24">One molecular world. Many ways to explore.</text>
+<text x="68" y="283" fill="#57dac5" font-family="Consolas,monospace" font-size="18">RUST CORE / C ABI / UNITY / OPTIONAL LAMMPS</text>
+<g stroke="#78bdcb" stroke-width="9" stroke-linecap="round"><path d="M900 130L1010 90L1100 165L1070 270L960 295L875 220Z"/><path d="M900 130L875 220M1010 90L1030 30M1100 165L1190 145M1070 270L1140 330M960 295L920 340M875 220L800 240M900 130L835 70"/></g>
+<g fill="url(#atom)"><circle cx="900" cy="130" r="27"/><circle cx="1010" cy="90" r="27"/><circle cx="1100" cy="165" r="27"/><circle cx="1070" cy="270" r="27"/><circle cx="960" cy="295" r="27"/><circle cx="875" cy="220" r="27"/></g>
+<g fill="#e4f5ff"><circle cx="835" cy="70" r="15"/><circle cx="1030" cy="30" r="15"/><circle cx="1190" cy="145" r="15"/><circle cx="1140" cy="330" r="15"/><circle cx="920" cy="340" r="15"/><circle cx="800" cy="240" r="15"/></g>
+</svg>

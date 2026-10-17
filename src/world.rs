@@ -16,22 +16,45 @@ pub struct World {
     pub(crate) molecules: Vec<MoleculeInstance>,
     pub(crate) atoms: Vec<AtomState>,
     pub(crate) bonds: Vec<Bond>,
-    pub sim_box: SimBox,
-    pub topology_version: u64,
-    pub state_version: u64,
-    next_id: u64,
+    pub(crate) sim_box: SimBox,
+    pub(crate) topology_version: u64,
+    pub(crate) state_version: u64,
+    pub(crate) next_id: u64,
+    identity: u64,
 }
 impl World {
     pub fn new(size: f64) -> Result<Self> {
+        static ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let sim_box = SimBox::new(size)?;
+        let identity = ID
+            .fetch_update(
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+                |v| v.checked_add(1),
+            )
+            .map_err(|_| Error::new(Code::Capacity, "world identities exhausted"))?;
         Ok(Self {
             molecules: Vec::new(),
             atoms: Vec::new(),
             bonds: Vec::new(),
-            sim_box: SimBox::new(size)?,
+            sim_box,
             topology_version: 0,
             state_version: 0,
             next_id: 1,
+            identity,
         })
+    }
+    pub fn sim_box(&self) -> SimBox {
+        self.sim_box
+    }
+    pub fn topology_version(&self) -> u64 {
+        self.topology_version
+    }
+    pub fn state_version(&self) -> u64 {
+        self.state_version
+    }
+    pub(crate) fn identity(&self) -> u64 {
+        self.identity
     }
     pub fn molecules(&self) -> &[MoleculeInstance] {
         &self.molecules

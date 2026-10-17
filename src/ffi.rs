@@ -193,6 +193,29 @@ pub extern "C" fn me_step(handle: u64, steps: u32) -> i32 {
     boundary(|| with_world(handle, |s| s.step(steps)))
 }
 #[no_mangle]
+pub extern "C" fn me_reset_template(
+    handle: u64,
+    kind: u32,
+    count: u32,
+    seed: u64,
+    kelvin: f64,
+) -> i32 {
+    boundary(|| {
+        with_world(handle, |s| {
+            s.reset(crate::environment::ResetSpec {
+                batches: vec![crate::environment::SpawnBatch {
+                    definition: definition(kind)?,
+                    count,
+                    seed,
+                    max_retries: 1000,
+                }],
+                thermal_kelvin: kelvin,
+                thermal_seed: seed,
+            })
+        })
+    })
+}
+#[no_mangle]
 pub unsafe extern "C" fn me_spawn(
     handle: u64,
     kind: u32,
