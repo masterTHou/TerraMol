@@ -132,3 +132,18 @@ Windows x64, Rust/Cargo 1.95.0, .NET Framework C# compiler, Python 3.12.3:
 Unity Editor/Play mode/player/IL2CPP remain unverified. Cross-platform CI is
 configured; consult its actual run status rather than extrapolating local results.
 No LAMMPS binary or downloaded wheel is included in the release.
+
+## Executed cross-platform CI
+
+[Run 39030938630](https://github.com/masterTHou/TerraMol/actions/runs/39030938630)
+completed successfully for runtime commit `0f60882`:
+
+- Windows, Ubuntu and macOS: format, strict Clippy, feature tests, release build,
+  actual shared-library ABI smoke and Python reset/actions pass.
+- Windows: standalone C# bridge layout/lifecycle/reset passes.
+- Ubuntu: pinned serial LAMMPS build, header signature assertions, both physical /
+  FFI integration tests, error conversion test and LJ example pass.
+
+CI used Rust stable 1.99.1; local validation used 1.95.0. Initial current-stable
+lint failures were fixed without suppressing warnings. Later commits only add
+release documentation/packaging. macOS LAMMPS and Unity Editor remain unverified.

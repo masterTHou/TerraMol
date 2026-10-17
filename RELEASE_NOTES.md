@@ -26,4 +26,6 @@ LAMMPS 二进制未捆绑，需用 `--features lammps` 编译并提供兼容的�
 IL2CPP 尚未验证，不能以 C# 桥接测试替代。详见 `docs/phases.md`、
 `docs/lammps.md`、`unity/README.md`。
 
-CI 的实时结果请查看 [GitHub Actions](https://github.com/masterTHou/TerraMol/actions)。
+跨平台 CI [运行 39030938630](https://github.com/masterTHou/TerraMol/actions/runs/39030938630)
+已全部通过：Windows/Linux/macOS 核心与 ABI、Windows C# 桥接，以及 Ubuntu
+LAMMPS 物理联调。CI 验证 Rust 1.99.1，本地验证 Rust 1.95.0。

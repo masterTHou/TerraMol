@@ -131,7 +131,9 @@ DLL，校验同一份 `RustCoreBridge.cs` 的内存布局与调用行为。
 
 **验证状态是交付的一部分。** [阶段记录](docs/phases.md) 区分实际执行、opt-in
 测试和环境缺失项。Unity Editor 尚未在本机验证；独立 C# 桥接测试不能替代
-Play mode、图形渲染、热重载或 IL2CPP 验证。CI 状态由上方徽章反映，不预先声称通过。
+Play mode、图形渲染、热重载或 IL2CPP 验证。
+[已完成的跨平台 CI](https://github.com/masterTHou/TerraMol/actions/runs/39030938630)
+验证了 Windows/Linux/macOS 核心与 ABI，以及 Ubuntu LAMMPS 联调；上方徽章反映最新运行。
 
 ## Beyond v1
 
