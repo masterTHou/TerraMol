@@ -12,7 +12,7 @@ import urllib.request
 
 with tempfile.TemporaryDirectory(prefix='terramol-viewer-') as temp:
     ready = Path(temp)/'ready.json'
-    process = subprocess.Popen([str(Path(sys.argv[1]).resolve()), '--no-browser', '--ready-file', str(ready)], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    process = subprocess.Popen([str(Path(sys.argv[1]).resolve()), '--no-browser', '--ready-file', str(ready)], cwd=temp,stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     try:
         deadline=time.monotonic()+20
         while not ready.exists():
@@ -72,7 +72,7 @@ with tempfile.TemporaryDirectory(prefix='terramol-viewer-') as temp:
 
 # Closing the last tab eventually releases the listener/world without a persistent service.
 with tempfile.TemporaryDirectory(prefix='terramol-idle-') as temp:
-    process=subprocess.Popen([str(Path(sys.argv[1]).resolve()),'--no-browser','--idle-timeout-seconds','1','--ready-file',str(Path(temp)/'ready.json')],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+    process=subprocess.Popen([str(Path(sys.argv[1]).resolve()),'--no-browser','--idle-timeout-seconds','1','--ready-file',str(Path(temp)/'ready.json')],cwd=temp,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
     try:
         assert process.wait(timeout=6)==0
     finally:
