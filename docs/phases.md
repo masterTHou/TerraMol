@@ -167,3 +167,10 @@ in `docs/viewer.md`; CI results are reported separately once executed.
 Current local totals: `cargo test` = 15 passed; `cargo test --all-features` =
 19 passed / 3 ignored. All three LAMMPS opt-in tests were also explicitly executed
 and passed after the thermal-selection change. No ignored test is counted as passed.
+
+Final v1.1 [CI run 39032916141](https://github.com/masterTHou/TerraMol/actions/runs/39032916141)
+is successful for runtime commit `e7d2d0e`: Windows/Linux/macOS core, actual viewer
+process/HTTP/lifecycle, Windows static-CRT packaging and C# bridge, and Ubuntu
+LAMMPS all pass. The extracted local Windows package also passes from a Unicode /
+spaced folder and unrelated working directory. Final precise input fields use
+`step=any` so sampled velocities and fractional Kelvin values remain editable.

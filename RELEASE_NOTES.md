@@ -28,7 +28,9 @@ Windows x64 独立 EXE，自动打开默认浏览器；全部网页资源已内�
 
 详细说明：[新手开始](https://github.com/masterTHou/TerraMol/blob/main/新手开始.md)、
 [Viewer 架构与验证](https://github.com/masterTHou/TerraMol/blob/main/docs/viewer.md)。
-CI 的实时结果请查看 [GitHub Actions](https://github.com/masterTHou/TerraMol/actions)。
+最终 [CI 运行 39032916141](https://github.com/masterTHou/TerraMol/actions/runs/39032916141)
+已全部通过：Windows/Linux/macOS 核心与 Viewer 真实进程测试、Windows 便携包
+构建/打包与 C# 桥接、Ubuntu LAMMPS 联调。
 
 ## v1.0 核心基础
 

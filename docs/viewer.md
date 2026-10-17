@@ -75,6 +75,12 @@ confirmed WebGL drawing, template reset to methane (250 atoms), pause, atom pick
 (147 atoms / 49 waters), Canvas fallback and UI shutdown. Mobile and desktop
 layouts were inspected. The README screenshot is actual program output.
 
+[CI run 39032916141](https://github.com/masterTHou/TerraMol/actions/runs/39032916141)
+passes on Windows, Ubuntu and macOS, including the real-process HTTP viewer tests.
+Windows also builds/tests/packages the static-CRT EXE. The separate Ubuntu LAMMPS
+job passes. Graphical browser rendering was exercised locally on Windows; CI's
+Unix viewer checks are headless HTTP/lifecycle checks, not GPU screenshot tests.
+
 ## Limits
 
 Native uses rigid translations and approximate bounding spheres, not atomistic

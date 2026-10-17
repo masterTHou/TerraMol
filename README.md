@@ -28,6 +28,9 @@
 完整操作说明：[新手开始](新手开始.md)。当前画面使用 Native 刚体近似，
 **不是带有完整力场的原子级 MD**；模型说明在页面中始终可见。
 
+[v1.1 跨平台 CI 全部通过](https://github.com/masterTHou/TerraMol/actions/runs/39032916141)，
+包含 Viewer 实际进程测试与 Windows 便携包构建。
+
 TerraMol 是一个长期演进的分子模拟与构象探索项目。`mol_engine_core`
 拥有唯一的分子定义、实例、拓扑和模拟状态；Unity 与浏览器只负责显示、输入和 UI。
 同一套 Rust API 与版本化 C ABI 为 CLI、Unity 和未来 Python 强化学习入口服务。
