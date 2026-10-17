@@ -48,9 +48,23 @@ impl World {
         center: Vec3,
         rotation: [f64; 4],
     ) -> Result<MoleculeId> {
+        let id = self.insert_molecule(definition, center, rotation)?;
+        self.rebuild();
+        Ok(id)
+    }
+    fn insert_molecule(
+        &mut self,
+        definition: Arc<MoleculeDefinition>,
+        center: Vec3,
+        rotation: [f64; 4],
+    ) -> Result<MoleculeId> {
+        if self.atoms.len().saturating_add(definition.atoms.len()) > 1_000_000 {
+            return Err(Error::new(Code::Capacity, "v1 atom budget is 1000000"));
+        }
         let qn = rotation.iter().map(|x| x * x).sum::<f64>();
         if !qn.is_finite()
             || (qn - 1.).abs() > 1e-8
+            || definition.radius * 2. >= self.sim_box.size
             || !self.sim_box.contains(center, definition.radius)
         {
             return Err(Error::invalid(
@@ -80,7 +94,6 @@ impl World {
             rotation,
             atom_start: 0,
         });
-        self.rebuild();
         Ok(id)
     }
     /// Atomic batch: an unsuccessful placement rolls back the entire batch (IDs stay retired).
@@ -94,6 +107,17 @@ impl World {
         if count > 100_000 || max_retries == 0 || max_retries > 1_000_000 {
             return Err(Error::invalid("invalid batch limits"));
         }
+        if self
+            .atoms
+            .len()
+            .saturating_add(definition.atoms.len().saturating_mul(count as usize))
+            > 1_000_000
+        {
+            return Err(Error::new(Code::Capacity, "batch exceeds v1 atom budget"));
+        }
+        if count > 0 && definition.radius * 2. >= self.sim_box.size {
+            return Err(Error::invalid("molecule does not fit box"));
+        }
         let start = self.molecules.len();
         let mut rng = Rng::new(seed);
         let mut ids = Vec::new();
@@ -103,7 +127,7 @@ impl World {
                 let p = std::array::from_fn(|_| {
                     definition.radius + rng.uniform() * (self.sim_box.size - 2. * definition.radius)
                 });
-                if let Ok(id) = self.spawn_molecule(definition.clone(), p, rng.rotation()) {
+                if let Ok(id) = self.insert_molecule(definition.clone(), p, rng.rotation()) {
                     ids.push(id);
                     placed = true;
                     break;
@@ -117,6 +141,9 @@ impl World {
                     "placement retries exhausted; batch rolled back",
                 ));
             }
+        }
+        if count > 0 {
+            self.rebuild();
         }
         Ok(ids)
     }

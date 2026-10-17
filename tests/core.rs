@@ -1,11 +1,40 @@
 use mol_engine_core::{actions::KB_VELOCITY, chemistry::*, geometry::*, world::World, Simulation};
 use std::sync::Arc;
 #[test]
+fn box_and_step_limits() {
+    let d = Arc::new(parse_xyz("1\nH\nH 0 0 0").unwrap());
+    let mut w = World::new(2.4).unwrap();
+    assert!(w.spawn_molecule(d, [1.2; 3], [0., 0., 0., 1.]).is_err());
+    let mut s = Simulation::native(100., 1.).unwrap();
+    let id = s
+        .world
+        .spawn_molecule(Arc::new(template(0).unwrap()), [50.; 3], [0., 0., 0., 1.])
+        .unwrap();
+    s.world.set_molecule_velocity(id, [1e12, 0., 0.]).unwrap();
+    assert!(s.step(1).is_err());
+    assert!(s.world.atoms().iter().all(|a| finite(a.position)));
+}
+#[test]
 fn templates() {
     for (k, n, b) in [(0, 3, 2), (1, 5, 4), (2, 12, 12)] {
         let m = template(k).unwrap();
         assert_eq!(m.atoms.len(), n);
         assert_eq!(m.bonds.len(), b);
+        for bond in &m.bonds {
+            let length = norm(sub(m.atoms[bond.a].local, m.atoms[bond.b].local));
+            let target = match k {
+                0 => 0.9572,
+                1 => 1.09,
+                _ => {
+                    if bond.b < 6 {
+                        1.397
+                    } else {
+                        1.09
+                    }
+                }
+            };
+            assert!((length - target).abs() < 1e-5);
+        }
         assert!(
             norm(
                 m.atoms
@@ -47,6 +76,10 @@ fn batch_delete() {
     w.remove_molecule(ids[15]).unwrap();
     assert_eq!(w.atoms().len(), 147);
     assert!(w.bonds().iter().all(|b| b.a < 147 && b.b < 147));
+    assert!(w
+        .bonds()
+        .iter()
+        .all(|b| w.atoms()[b.a].molecule_id == w.atoms()[b.b].molecule_id));
     assert!(!w.atoms().iter().any(|a| a.molecule_id == ids[15]));
     let before = w.molecules().len();
     assert!(w.batch_spawn_molecules(def, 1000, 4, 1).is_err());

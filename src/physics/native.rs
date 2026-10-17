@@ -18,6 +18,9 @@ impl PhysicsBackend for NativeBackend {
         Ok(())
     }
     fn step(&mut self, w: &mut World, dt: f64, steps: u32) -> Result<()> {
+        if !dt.is_finite() || dt <= 0. || steps > 1_000_000 {
+            return Err(Error::invalid("invalid fixed timestep or step count"));
+        }
         let min_radius = w
             .molecules
             .iter()

@@ -12,6 +12,7 @@ namespace TerraMol {
             arrow=go.AddComponent<LineRenderer>();arrow.useWorldSpace=false;arrow.positionCount=5;
             arrow.startWidth=0.12f;arrow.endWidth=0.12f;arrow.sharedMaterial=Controller.Visualizer.SharedAtomMaterial;
             arrow.startColor=Color.yellow;arrow.endColor=Color.yellow;arrow.enabled=false;
+            var properties=new MaterialPropertyBlock();properties.SetColor("_Color",Color.yellow);properties.SetColor("_BaseColor",Color.yellow);arrow.SetPropertyBlock(properties);
         }
         void Update() {
             if (Controller.Core == null || ViewCamera == null) return;

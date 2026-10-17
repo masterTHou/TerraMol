@@ -66,11 +66,92 @@ fn definition(kind: u32) -> Result<Arc<crate::molecule::MoleculeDefinition>> {
     .ok_or_else(|| Error::invalid("unknown template"))
 }
 fn pointer<T>(p: *const T) -> Result<()> {
-    if p.is_null() {
-        Err(Error::invalid("null pointer"))
+    if p.is_null() || !(p as usize).is_multiple_of(std::mem::align_of::<T>()) {
+        Err(Error::invalid("null or misaligned pointer"))
     } else {
         Ok(())
     }
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_create_lj(
+    path: *const u8,
+    length: u32,
+    size: f64,
+    dt: f64,
+    epsilon: f64,
+    sigma: f64,
+    cutoff: f64,
+    out: *mut u64,
+) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        unsafe { out.write(0) };
+        pointer(path)?;
+        if length == 0 || length > 32768 {
+            return Err(Error::invalid("library path length must be 1..32768"));
+        }
+        let name =
+            std::str::from_utf8(unsafe { std::slice::from_raw_parts(path, length as usize) })
+                .map_err(|_| Error::invalid("path must be UTF-8"))?;
+        #[cfg(feature = "lammps")]
+        {
+            use crate::physics::lammps_backend::{LammpsBackend, LennardJones};
+            let backend = LammpsBackend::new(
+                name,
+                LennardJones {
+                    epsilon_kcal_mol: epsilon,
+                    sigma_angstrom: sigma,
+                    cutoff_angstrom: cutoff,
+                },
+            )?;
+            let sim = Simulation::new(crate::world::World::new(size)?, dt, Box::new(backend))?;
+            let mut r = registry()?;
+            let id = r.next;
+            r.next = r
+                .next
+                .checked_add(1)
+                .ok_or_else(|| Error::new(Code::Capacity, "handle space exhausted"))?;
+            r.worlds.insert(id, sim);
+            unsafe { out.write(id) };
+            Ok(())
+        }
+        #[cfg(not(feature = "lammps"))]
+        {
+            let _ = (name, size, dt, epsilon, sigma, cutoff);
+            Err(Error::new(
+                Code::Unsupported,
+                "build with --features lammps",
+            ))
+        }
+    })
+}
+#[no_mangle]
+pub unsafe extern "C" fn me_spawn_particle(
+    handle: u64,
+    number: u32,
+    x: f64,
+    y: f64,
+    z: f64,
+    out: *mut u64,
+) -> i32 {
+    boundary(|| {
+        pointer(out)?;
+        unsafe { out.write(0) };
+        let e = chemistry::by_number(number)?;
+        let d = Arc::new(crate::molecule::MoleculeDefinition::new(
+            "Monatomic particle",
+            vec![crate::molecule::AtomDefinition {
+                element: e,
+                local: [0.; 3],
+            }],
+            vec![],
+        )?);
+        with_world(handle, |s| {
+            let id = s.world.spawn_molecule(d, [x, y, z], [0., 0., 0., 1.])?;
+            unsafe { out.write(id) };
+            Ok(())
+        })
+    })
 }
 #[no_mangle]
 pub unsafe extern "C" fn me_abi_version(out: *mut u32) -> i32 {
@@ -265,7 +346,7 @@ pub unsafe extern "C" fn me_element(number: u32, out: *mut ElementInfo) -> i32 {
 #[no_mangle]
 pub unsafe extern "C" fn me_last_error(buffer: *mut u8, capacity: u64, required: *mut u64) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        if required.is_null() {
+        if pointer(required).is_err() {
             return Code::Invalid as i32;
         }
         LAST_ERROR.with(|s| {
@@ -286,4 +367,17 @@ pub unsafe extern "C" fn me_last_error(buffer: *mut u8, capacity: u64, required:
         })
     }))
     .unwrap_or(Code::Panic as i32)
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn catches_panics() {
+        assert_eq!(
+            boundary(|| panic!("intentional test panic")),
+            Code::Panic as i32
+        );
+        let message = LAST_ERROR.with(|s| s.borrow().clone());
+        assert!(message.contains("panic contained"));
+    }
 }

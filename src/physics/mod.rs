@@ -1,3 +1,7 @@
+#[cfg(feature = "lammps")]
+pub mod lammps_backend;
+#[cfg(feature = "lammps")]
+pub mod lammps_ffi;
 pub mod native;
 use crate::{error::Result, world::World};
 pub trait PhysicsBackend: Send {
